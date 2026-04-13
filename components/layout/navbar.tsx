@@ -20,15 +20,22 @@ const navLinks = [
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isMounted, setIsMounted] = useState(false) // Parche de hidratación
   const { openCart, getItemCount } = useCartStore()
   const itemCount = getItemCount()
 
+  // Efecto para controlar el scroll
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10)
     }
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Efecto para el parche de hidratación
+  useEffect(() => {
+    setIsMounted(true)
   }, [])
 
   return (
@@ -51,7 +58,6 @@ export function Navbar() {
           </SheetTrigger>
           <SheetContent side="left" className="w-full max-w-sm bg-background">
             <div className="flex flex-col gap-8 pt-8">
-              {/* Logo in mobile menu */}
               <Link href="/" onClick={() => setMobileMenuOpen(false)}>
                 <div className="flex items-center gap-2">
                   <Image
@@ -66,7 +72,6 @@ export function Navbar() {
                   </span>
                 </div>
               </Link>
-              {/* Mobile Nav Links */}
               <nav className="flex flex-col gap-4">
                 {navLinks.map((link) => (
                   <Link
@@ -83,7 +88,7 @@ export function Navbar() {
           </SheetContent>
         </Sheet>
 
-        {/* Logo - Center on mobile, left on desktop */}
+        {/* Logo */}
         <Link href="/" className="flex items-center gap-2 lg:gap-3">
           <Image
             src="/images/logo.jpg"
@@ -125,7 +130,8 @@ export function Navbar() {
         >
           <ShoppingBag className="h-6 w-6" />
           <AnimatePresence>
-            {itemCount > 0 && (
+            {/* Solo renderizamos el contador si el componente ya se montó en el cliente */}
+            {isMounted && itemCount > 0 && (
               <motion.span
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -136,7 +142,7 @@ export function Navbar() {
               </motion.span>
             )}
           </AnimatePresence>
-          <span className="sr-only">Carrito ({itemCount} items)</span>
+          <span className="sr-only">Carrito ({isMounted ? itemCount : 0} items)</span>
         </Button>
       </nav>
     </header>

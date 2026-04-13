@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Playfair_Display, Manrope } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
+import { StoreContactSync } from '@/components/providers/store-contact-sync'
 
 const playfair = Playfair_Display({ 
   subsets: ["latin"],
@@ -52,6 +53,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${playfair.variable} ${manrope.variable} bg-background`}>
       <body className="font-sans antialiased">
+        <StoreContactSync />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

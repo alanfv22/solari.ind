@@ -12,7 +12,7 @@ export function Hero() {
       {/* Background Image */}
       <div className="absolute inset-0">
         <Image
-          src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=1920&h=1080&fit=crop"
+          src="/images/local.jpg"
           alt="Solari Indumentaria - Moda premium"
           fill
           className="object-cover"
@@ -21,7 +21,17 @@ export function Hero() {
         {/* Overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent" />
       </div>
-
+      <div className="absolute inset-0 bg-black"> {/* Fondo negro para rellenar los costados */}
+  <Image
+    src="/images/local.jpg" 
+    alt="Solari Indumentaria - local"
+    fill
+    className="object-contain" // Cambiamos cover por contain
+    priority
+  />
+  {/* Ajustamos el overlay para que no tape tanto la foto ahora que está completa */}
+  <div className="absolute inset-0 bg-black/40" /> 
+</div>
       {/* Content */}
       <div className="relative flex min-h-screen items-center">
         <div className="mx-auto w-full max-w-7xl px-4 py-32 lg:px-8">

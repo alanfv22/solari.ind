@@ -1,51 +1,43 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
-import { Instagram, Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
+import { MapPin } from 'lucide-react'
 import { Navbar } from '@/components/layout/navbar'
 import { Footer } from '@/components/layout/footer'
 import { CartDrawer } from '@/components/cart/cart-drawer'
 import { WhatsAppFab } from '@/components/ui/whatsapp-fab'
-import { Button } from '@/components/ui/button'
-import { store } from '@/lib/mock-data'
+import { 
+  fetchStoreWhatsAppNumber, 
+  getFallbackWhatsAppDigits 
+} from '@/lib/store-contact'
+import { ContactMethodCards } from '@/components/contact/contact-method-cards'
 
 export const metadata: Metadata = {
   title: 'Contacto | Solari Indumentaria',
-  description: 'Contactanos por WhatsApp, Instagram o email. Estamos para ayudarte.',
+  description: 'Contactanos por WhatsApp o Instagram. Estamos para ayudarte.',
 }
 
-const contactMethods = [
-  {
-    icon: MessageCircle,
-    title: 'WhatsApp',
-    description: 'La forma más rápida de contactarnos',
-    action: 'Enviar mensaje',
-    href: `https://wa.me/${store.whatsapp_number}?text=${encodeURIComponent('Hola! Me gustaría hacer una consulta.')}`,
-    highlight: true,
-  },
-  {
-    icon: Instagram,
-    title: 'Instagram',
-    description: '@solari.indumentaria',
-    action: 'Seguinos',
-    href: store.instagram_url || '#',
-    highlight: false,
-  },
-  {
-    icon: Mail,
-    title: 'Email',
-    description: 'info@solari.com.ar',
-    action: 'Escribinos',
-    href: 'mailto:info@solari.com.ar',
-    highlight: false,
-  },
-]
+export default async function ContactoPage() {
+  const fromDb = await fetchStoreWhatsAppNumber()
+  const digits = fromDb || getFallbackWhatsAppDigits()
 
-export default function ContactoPage() {
+  const whatsappMessage = encodeURIComponent('¡Hola! Me gustaría hacer una consulta.')
+  const whatsappHref = digits 
+    ? `https://wa.me/${digits}?text=${whatsappMessage}` 
+    : '#'
+
+  // DIRECCIÓN ACTUALIZADA
+  const displayAddress = "Ontiveros 30 (Maq. Savio, Escobar)"
+  const mapQuery = "Ontiveros 30, Maquinista Savio, Provincia de Buenos Aires"
+  
+  // URL para el Iframe con el marcador
+  const mapEmbedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&t=&z=16&ie=UTF8&iwloc=B&output=embed`
+  
+  // URL para el botón externo
+  const googleMapsExternalUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
+
   return (
     <>
       <Navbar />
       <main className="pt-20">
-        {/* Header */}
         <section className="mx-auto max-w-4xl px-4 py-16 text-center lg:px-8">
           <h1 className="font-serif text-4xl font-medium text-foreground sm:text-5xl">
             Contactanos
@@ -55,105 +47,66 @@ export default function ContactoPage() {
           </p>
         </section>
 
-        {/* Contact Methods */}
-        <section className="mx-auto max-w-4xl px-4 pb-16 lg:px-8">
-          <div className="grid gap-6 md:grid-cols-3">
-            {contactMethods.map((method) => (
-              <a
-                key={method.title}
-                href={method.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`flex flex-col items-center rounded-xl border p-8 text-center transition-all hover:shadow-lg ${
-                  method.highlight
-                    ? 'border-[#25D366] bg-[#25D366]/5 hover:border-[#25D366]'
-                    : 'border-border hover:border-primary'
-                }`}
-              >
-                <div
-                  className={`flex h-14 w-14 items-center justify-center rounded-full ${
-                    method.highlight
-                      ? 'bg-[#25D366] text-white'
-                      : 'bg-secondary text-foreground'
-                  }`}
-                >
-                  <method.icon className="h-6 w-6" />
-                </div>
-                <h2 className="mt-4 text-lg font-medium text-foreground">
-                  {method.title}
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {method.description}
-                </p>
-                <span
-                  className={`mt-4 text-sm font-medium ${
-                    method.highlight ? 'text-[#25D366]' : 'text-primary'
-                  }`}
-                >
-                  {method.action}
-                </span>
-              </a>
-            ))}
-          </div>
-        </section>
+        <ContactMethodCards
+          whatsappHref={whatsappHref}
+          instagramHref="https://instagram.com/solari.ind"
+        />
 
-        {/* Location */}
         <section className="border-t border-border bg-secondary/30 py-16">
-          <div className="mx-auto max-w-4xl px-4 text-center lg:px-8">
-            <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-background">
+          <div className="mx-auto max-w-5xl px-4 text-center lg:px-8">
+            <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-background mb-6 shadow-sm">
               <MapPin className="h-6 w-6 text-foreground" />
             </div>
-            <h2 className="mt-4 font-serif text-2xl font-medium text-foreground sm:text-3xl">
+            <h2 className="font-serif text-3xl font-medium text-foreground">
               Nuestra Ubicación
             </h2>
-            <p className="mt-2 text-muted-foreground">{store.address}</p>
-            <p className="mt-4 text-sm text-muted-foreground">
-              Consultá nuestros horarios de atención por WhatsApp
+            <p className="mt-2 text-lg text-muted-foreground mb-8">
+              {displayAddress}
+            </p>
+
+            <div className="group relative overflow-hidden rounded-2xl border border-border bg-background shadow-lg transition-all hover:shadow-xl">
+              <iframe
+                width="100%"
+                height="450"
+                style={{ border: 0 }}
+                loading="lazy"
+                allowFullScreen
+                src={mapEmbedUrl}
+                title="Ubicación Solari"
+                className="grayscale-[0.1] contrast-[1.05]"
+              ></iframe>
+              
+              <a 
+                href={googleMapsExternalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute inset-0 z-10 cursor-pointer flex items-end justify-center pb-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <div className="bg-foreground text-background px-6 py-3 rounded-full text-sm font-bold shadow-2xl flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  VER EN GOOGLE MAPS
+                </div>
+              </a>
+            </div>
+            
+            <p className="mt-6 text-sm text-muted-foreground italic">
+              Hacé clic en el mapa para obtener indicaciones exactas.
             </p>
           </div>
         </section>
 
-        {/* FAQ Quick Links */}
         <section className="mx-auto max-w-4xl px-4 py-16 lg:px-8">
           <h2 className="text-center font-serif text-2xl font-medium text-foreground sm:text-3xl">
             Preguntas Frecuentes
           </h2>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <div className="rounded-lg border border-border p-6">
-              <h3 className="font-medium text-foreground">
-                ¿Hacen envíos a todo el país?
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Sí, enviamos a toda Argentina. Consultanos el costo de envío a tu
-                localidad por WhatsApp.
-              </p>
+            <div className="rounded-lg border border-border p-6 bg-background">
+              <h3 className="font-medium text-foreground">¿Hacen envíos a todo el país?</h3>
+              <p className="mt-2 text-sm text-muted-foreground">Sí, enviamos a toda Argentina. Consultanos el costo según tu zona.</p>
             </div>
-            <div className="rounded-lg border border-border p-6">
-              <h3 className="font-medium text-foreground">
-                ¿Cuáles son los medios de pago?
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Aceptamos transferencia bancaria, Mercado Pago y efectivo.
-                Coordinamos el pago por WhatsApp.
-              </p>
-            </div>
-            <div className="rounded-lg border border-border p-6">
-              <h3 className="font-medium text-foreground">
-                ¿Tienen cambios o devoluciones?
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Sí, tenés 15 días para cambiar tu producto. Consultanos las
-                condiciones.
-              </p>
-            </div>
-            <div className="rounded-lg border border-border p-6">
-              <h3 className="font-medium text-foreground">
-                ¿Cómo elijo mi talle?
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Escribinos por WhatsApp con tus medidas y te asesoramos para que
-                elijas el talle perfecto.
-              </p>
+            <div className="rounded-lg border border-border p-6 bg-background">
+              <h3 className="font-medium text-foreground">¿Se puede retirar en el local?</h3>
+              <p className="mt-2 text-sm text-muted-foreground">Sí, podés pasar por Ontiveros 30 coordinando previamente por WhatsApp.</p>
             </div>
           </div>
         </section>

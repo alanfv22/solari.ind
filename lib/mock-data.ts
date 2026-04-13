@@ -6,7 +6,7 @@ export const store: Store = {
   slug: 'solari',
   logo_url: '/images/logo.jpg',
   whatsapp_number: '5491112345678', // Placeholder - update with real number
-  instagram_url: 'https://instagram.com/solari.indumentaria',
+  instagram_url: 'https://instagram.com/solari.ind',
   address: 'Buenos Aires, Argentina',
   currency: 'ARS',
   active: true,

@@ -1,17 +1,37 @@
-# v0 sandbox internal files
+# Dependencias
+node_modules/
+.pnpm-debug.log*
+
+# Next.js build output
+.next/
+out/
+build/
+
+
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env.local
+
+# Configuración de Cursor y VS Code
+.vscode/*
+!.vscode/extensions.json
+.history/
+*.log
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Vercel (si decides desplegar ahí)
+.vercel
+
+# v0 sandbox internal files (ya que estabas usando v0)
 __v0_runtime_loader.js
 __v0_devtools.tsx
 __v0_jsx-dev-runtime.ts
 .snowflake/
 .v0-trash/
-.vercel/
 next.user-config.*
-
-# Environment variables
-.env*.local
-
-# Common ignores
-node_modules
-.next/
-.DS_Store
-.vercel

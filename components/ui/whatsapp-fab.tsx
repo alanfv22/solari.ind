@@ -1,13 +1,36 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { store } from '@/lib/mock-data'
+import { useStoreWhatsApp } from '@/hooks/use-store-whatsapp'
+
+// Definimos la constante de saludo
+const GREETING = 'Hola! Me gustaría hacer una consulta sobre los productos de Solari.'
+
+// Función local para limpiar los dígitos y evitar errores de importación
+function normalizeDigits(phone: string | null): string | null {
+  if (!phone) return null
+  return phone.replace(/\D/g, '')
+}
 
 export function WhatsAppFab() {
-  const greeting = encodeURIComponent(
-    'Hola! Me gustaría hacer una consulta sobre los productos de Solari.'
-  )
-  const whatsappUrl = `https://wa.me/${store.whatsapp_number}?text=${greeting}`
+  const { whatsappDigits, loading } = useStoreWhatsApp()
+
+  // Construimos la URL manualmente
+  const cleanDigits = normalizeDigits(whatsappDigits)
+  const whatsappUrl = cleanDigits 
+    ? `https://wa.me/${cleanDigits}?text=${encodeURIComponent(GREETING)}`
+    : null
+
+  // Si está cargando o no hay URL, mostramos un esqueleto (pulse)
+  if (loading || !whatsappUrl) {
+    return (
+      <div
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 animate-pulse items-center justify-center rounded-full bg-[#25D366]/60 shadow-lg"
+        aria-busy="true"
+        aria-label="Cargando contacto de WhatsApp"
+      />
+    )
+  }
 
   return (
     <motion.a

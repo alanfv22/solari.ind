@@ -5,8 +5,17 @@ import { persist } from 'zustand/middleware'
 import type { CartItem, Product, ProductVariant } from './types'
 import { store as storeData, formatPrice } from './mock-data'
 
+
+function normalizeWhatsAppDigits(phone: string | null): string | null {
+  if (!phone) return null;
+  return phone.replace(/\D/g, '');
+}
+
 interface CartStore {
   items: CartItem[]
+  /** Dígitos para wa.me; se actualiza desde Supabase en el cliente. */
+  whatsappDigits: string | null
+  setWhatsappDigits: (digits: string | null) => void
   isOpen: boolean
   openCart: () => void
   closeCart: () => void
@@ -25,6 +34,9 @@ export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
+      whatsappDigits: null,
+      setWhatsappDigits: (digits) => set({ whatsappDigits: digits }),
+
       isOpen: false,
 
       openCart: () => set({ isOpen: true }),
@@ -111,7 +123,11 @@ export const useCartStore = create<CartStore>()(
       getWhatsAppUrl: () => {
         const message = get().generateWhatsAppMessage()
         const encodedMessage = encodeURIComponent(message)
-        return `https://wa.me/${storeData.whatsapp_number}?text=${encodedMessage}`
+        const digits =
+          get().whatsappDigits ??
+          normalizeWhatsAppDigits(storeData.whatsapp_number) ??
+          ''
+        return `https://wa.me/${digits}?text=${encodedMessage}`
       },
     }),
     {
