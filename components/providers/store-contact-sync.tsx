@@ -2,18 +2,19 @@
 
 import { useEffect } from 'react'
 import { useCartStore } from '@/lib/cart-store'
-import { fetchStoreWhatsAppNumber, getFallbackWhatsAppDigits } from '@/lib/store-contact'
+import { fetchStoreContact } from '@/lib/store-contact'
 
-/** Sincroniza el número de WhatsApp del carrito con Supabase (mismo origen que el FAB). */
+/** Sincroniza el número de WhatsApp y el descuento de transferencia con Supabase. */
 export function StoreContactSync() {
   const setDigits = useCartStore((s) => s.setWhatsappDigits)
+  const setCashDiscountPercent = useCartStore((s) => s.setCashDiscountPercent)
 
   useEffect(() => {
-    fetchStoreWhatsAppNumber().then((fromDb) => {
-      const resolved = fromDb ?? getFallbackWhatsAppDigits()
-      if (resolved) setDigits(resolved)
+    fetchStoreContact().then(({ whatsappDigits, cashDiscountPercent }) => {
+      if (whatsappDigits) setDigits(whatsappDigits)
+      setCashDiscountPercent(cashDiscountPercent)
     })
-  }, [setDigits])
+  }, [setDigits, setCashDiscountPercent])
 
   return null
 }

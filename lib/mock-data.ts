@@ -103,6 +103,7 @@ export const products: Product[] = [
     active: true,
     sort_order: 1,
     gender: 'mujer',
+    is_made_to_order: false,
     images: [
       'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&h=1000&fit=crop',
       'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=800&h=1000&fit=crop',
@@ -125,6 +126,7 @@ export const products: Product[] = [
     active: true,
     sort_order: 2,
     gender: 'mujer',
+    is_made_to_order: false,
     images: [
       'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=800&h=1000&fit=crop',
       'https://images.unsplash.com/photo-1618354691438-25bc04584c23?w=800&h=1000&fit=crop',
@@ -147,6 +149,7 @@ export const products: Product[] = [
     active: true,
     sort_order: 3,
     gender: 'mujer',
+    is_made_to_order: false,
     images: [
       'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&h=1000&fit=crop',
       'https://images.unsplash.com/photo-1584370848010-d7fe6bc767ec?w=800&h=1000&fit=crop',
@@ -169,6 +172,7 @@ export const products: Product[] = [
     active: true,
     sort_order: 4,
     gender: 'mujer',
+    is_made_to_order: true,
     images: [
       'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&h=1000&fit=crop',
       'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&h=1000&fit=crop',
@@ -192,6 +196,7 @@ export const products: Product[] = [
     active: true,
     sort_order: 5,
     gender: 'hombre',
+    is_made_to_order: false,
     images: [
       'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&h=1000&fit=crop',
       'https://images.unsplash.com/photo-1603252109303-2751441dd157?w=800&h=1000&fit=crop',
@@ -214,6 +219,7 @@ export const products: Product[] = [
     active: true,
     sort_order: 6,
     gender: 'hombre',
+    is_made_to_order: false,
     images: [
       'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&h=1000&fit=crop',
       'https://images.unsplash.com/photo-1622445275576-721325763afe?w=800&h=1000&fit=crop',
@@ -236,6 +242,7 @@ export const products: Product[] = [
     active: true,
     sort_order: 7,
     gender: 'hombre',
+    is_made_to_order: false,
     images: [
       'https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&h=1000&fit=crop',
       'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&h=1000&fit=crop',
@@ -258,6 +265,7 @@ export const products: Product[] = [
     active: true,
     sort_order: 8,
     gender: 'hombre',
+    is_made_to_order: false,
     images: [
       'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&h=1000&fit=crop',
       'https://images.unsplash.com/photo-1520975954732-35dd22299614?w=800&h=1000&fit=crop',

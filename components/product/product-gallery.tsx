@@ -35,13 +35,15 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
             transition={{ duration: 0.3 }}
             className="relative h-full w-full"
           >
-            <Image
-              src={images[selectedIndex]}
-              alt={`${productName} - imagen ${selectedIndex + 1}`}
-              fill
-              className="object-cover"
-              priority={selectedIndex === 0}
-            />
+            {images[selectedIndex] && (
+              <Image
+                src={images[selectedIndex]}
+                alt={`${productName} - imagen ${selectedIndex + 1}`}
+                fill
+                className="object-cover"
+                priority={selectedIndex === 0}
+              />
+            )}
           </motion.div>
         </AnimatePresence>
 
@@ -85,12 +87,14 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
                   : 'opacity-60 hover:opacity-100'
               )}
             >
-              <Image
-                src={image}
-                alt={`${productName} - miniatura ${index + 1}`}
-                fill
-                className="object-cover"
-              />
+              {image && (
+                <Image
+                  src={image}
+                  alt={`${productName} - miniatura ${index + 1}`}
+                  fill
+                  className="object-cover"
+                />
+              )}
             </button>
           ))}
         </div>

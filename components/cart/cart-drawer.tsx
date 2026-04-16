@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { useCartStore } from '@/lib/cart-store'
-import { formatPrice } from '@/lib/mock-data'
+import { formatPrice } from '@/lib/data'
 
 export function CartDrawer() {
   const {
@@ -61,12 +61,14 @@ export function CartDrawer() {
                     >
                       {/* Product Image */}
                       <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-md bg-secondary">
-                        <Image
-                          src={item.product.images[0]}
-                          alt={item.product.name}
-                          fill
-                          className="object-cover"
-                        />
+                        {item.product.images?.[0]?.url && (
+                          <Image
+                            src={item.product.images[0].url}
+                            alt={item.product.name}
+                            fill
+                            className="object-cover"
+                          />
+                        )}
                       </div>
 
                       {/* Product Details */}

@@ -3,7 +3,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CartItem, Product, ProductVariant } from './types'
-import { store as storeData, formatPrice } from './mock-data'
+import { formatPrice } from './data'
 
 
 function normalizeWhatsAppDigits(phone: string | null): string | null {
@@ -16,6 +16,9 @@ interface CartStore {
   /** Dígitos para wa.me; se actualiza desde Supabase en el cliente. */
   whatsappDigits: string | null
   setWhatsappDigits: (digits: string | null) => void
+  /** Descuento por pago en efectivo/transferencia, traído desde stores. */
+  cashDiscountPercent: number
+  setCashDiscountPercent: (percent: number) => void
   isOpen: boolean
   openCart: () => void
   closeCart: () => void
@@ -36,6 +39,8 @@ export const useCartStore = create<CartStore>()(
       items: [],
       whatsappDigits: null,
       setWhatsappDigits: (digits) => set({ whatsappDigits: digits }),
+      cashDiscountPercent: 20,
+      setCashDiscountPercent: (percent) => set({ cashDiscountPercent: percent }),
 
       isOpen: false,
 
@@ -123,10 +128,7 @@ export const useCartStore = create<CartStore>()(
       getWhatsAppUrl: () => {
         const message = get().generateWhatsAppMessage()
         const encodedMessage = encodeURIComponent(message)
-        const digits =
-          get().whatsappDigits ??
-          normalizeWhatsAppDigits(storeData.whatsapp_number) ??
-          ''
+        const digits = get().whatsappDigits ?? ''
         return `https://wa.me/${digits}?text=${encodedMessage}`
       },
     }),

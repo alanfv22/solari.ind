@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { SlidersHorizontal, X } from 'lucide-react'
 import { Navbar } from '@/components/layout/navbar'
@@ -8,37 +8,48 @@ import { Footer } from '@/components/layout/footer'
 import { CartDrawer } from '@/components/cart/cart-drawer'
 import { WhatsAppFab } from '@/components/ui/whatsapp-fab'
 import { ProductCard } from '@/components/product/product-card'
+import { ProductCardSkeleton } from '@/components/product/product-card-skeleton'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { products, categories } from '@/lib/mock-data'
+import { fetchProducts, fetchCategories } from '@/lib/data'
 import { cn } from '@/lib/utils'
+import type { Product, Category } from '@/lib/types'
 
 type GenderFilter = 'todo' | 'mujer' | 'hombre'
 type SortOption = 'featured' | 'price-asc' | 'price-desc' | 'newest'
 
 export default function CatalogoPage() {
+  const [allProducts, setAllProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
   const [selectedGender, setSelectedGender] = useState<GenderFilter>('todo')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<SortOption>('featured')
   const [filtersOpen, setFiltersOpen] = useState(false)
 
-  const filteredProducts = useMemo(() => {
-    let filtered = [...products]
+  useEffect(() => {
+    Promise.all([fetchProducts(), fetchCategories()]).then(([prods, cats]) => {
+      setAllProducts(prods)
+      setCategories(cats)
+      setIsLoading(false)
+    })
+  }, [])
 
-    // Gender filter
+  const filteredProducts = useMemo(() => {
+    let filtered = [...allProducts]
+
     if (selectedGender !== 'todo') {
       filtered = filtered.filter(
         (p) => p.gender === selectedGender || p.gender === 'unisex'
       )
     }
 
-    // Category filter
     if (selectedCategory) {
       filtered = filtered.filter((p) => p.category_id === selectedCategory)
     }
 
-    // Sort
     switch (sortBy) {
       case 'price-asc':
         filtered.sort((a, b) => a.base_price - b.base_price)
@@ -57,7 +68,7 @@ export default function CatalogoPage() {
     }
 
     return filtered
-  }, [selectedGender, selectedCategory, sortBy])
+  }, [allProducts, selectedGender, selectedCategory, sortBy])
 
   const activeFiltersCount = [
     selectedGender !== 'todo',
@@ -119,7 +130,7 @@ export default function CatalogoPage() {
                 ))}
               </div>
 
-              {/* Filters Button - Mobile & Desktop */}
+              {/* Filters Button */}
               <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
                 <SheetTrigger asChild>
                   <Button variant="outline" className="gap-2 sm:ml-auto">
@@ -216,7 +227,6 @@ export default function CatalogoPage() {
                       </div>
                     </div>
 
-                    {/* Clear Filters */}
                     {activeFiltersCount > 0 && (
                       <Button variant="outline" onClick={clearFilters}>
                         Limpiar filtros
@@ -227,9 +237,11 @@ export default function CatalogoPage() {
               </Sheet>
 
               {/* Results Count */}
-              <span className="text-sm text-muted-foreground">
-                {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''}
-              </span>
+              {!isLoading && (
+                <span className="text-sm text-muted-foreground">
+                  {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -271,7 +283,13 @@ export default function CatalogoPage() {
 
         {/* Products Grid */}
         <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-          {filteredProducts.length === 0 ? (
+          {isLoading ? (
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4 lg:gap-8">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <ProductCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
               <p className="text-lg text-muted-foreground">
                 No encontramos productos con estos filtros.

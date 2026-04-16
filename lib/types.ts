@@ -1,5 +1,3 @@
-// Types matching Supabase schema for easy migration
-
 export type Gender = 'mujer' | 'hombre' | 'unisex'
 
 export interface Category {
@@ -7,11 +5,8 @@ export interface Category {
   store_id: string
   name: string
   slug: string
-  description: string | null
-  image_url: string | null
+  icon_url: string | null
   sort_order: number
-  active: boolean
-  created_at: string
 }
 
 export interface Brand {
@@ -20,8 +15,24 @@ export interface Brand {
   name: string
   slug: string
   logo_url: string | null
+  sort_order: number
+}
+
+export interface ProductImage {
+  id: string
+  product_id: string
+  url: string
+  is_primary: boolean
+  sort_order: number
+}
+
+export interface ProductVariant {
+  id: string
+  product_id: string
+  label: string
+  price_override: number | null
+  stock: number
   active: boolean
-  created_at: string
 }
 
 export interface Product {
@@ -33,29 +44,18 @@ export interface Product {
   slug: string
   description: string
   base_price: number
-  compare_at_price: number | null
+  is_on_sale: boolean
+  sale_percent: number
   active: boolean
   sort_order: number
   gender: Gender
-  images: string[]
+  is_made_to_order: boolean
   created_at: string
-  updated_at: string
   // Joined data
   category?: Category
   brand?: Brand
   variants?: ProductVariant[]
-}
-
-export interface ProductVariant {
-  id: string
-  product_id: string
-  type: 'size' | 'color'
-  label: string
-  value: string
-  price_override: number | null
-  stock: number
-  active: boolean
-  sort_order: number
+  images?: ProductImage[]
 }
 
 export interface CartItem {
@@ -70,8 +70,8 @@ export interface Store {
   slug: string
   logo_url: string | null
   whatsapp_number: string
-  instagram_url: string | null
-  address: string | null
-  currency: string
+  whatsapp_message_template: string
+  primary_color: string
   active: boolean
+  cash_discount_percent: number
 }
