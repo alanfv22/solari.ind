@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useForm, useFieldArray } from 'react-hook-form'
+import { useState, useEffect } from 'react'
+import { useForm, useFieldArray, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useRouter } from 'next/navigation'
@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PriceInput } from '@/components/ui/price-input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
@@ -29,8 +30,8 @@ import type { Category, Product } from '@/lib/types'
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
-const LETTER_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
-const NUMBER_SIZES = ['34', '36', '38', '40', '42', '44', '46', '48']
+const LETTER_SIZES = ['S', 'M', 'L', 'XL', 'XXL']
+const NUMBER_SIZES = ['36', '38', '40', '42', '44', '46']
 
 // ─── Compresión de imagen (cliente) ──────────────────────────────────────────
 
@@ -73,7 +74,7 @@ async function compressImage(file: File): Promise<Blob> {
 const variantSchema = z.object({
   id: z.string().optional(),
   label: z.string().min(1, 'Requerido'),
-  price_override: z.coerce.number().nullable(),
+  price_override: z.preprocess((v) => (v === '' || v === null || v === undefined ? null : Number(v)), z.number().nullable()),
   stock: z.coerce.number().min(0, 'Stock ≥ 0'),
   active: z.boolean(),
 })
@@ -110,10 +111,31 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
   const [saving, setSaving] = useState(false)
   const cashDiscountPercent = useCartStore((s) => s.cashDiscountPercent)
 
+  // Estado local para descuentos bidireccionales
+  const [transferDiscountPercent, setTransferDiscountPercent] = useState(20)
+  const [saleDiscountPercent, setSaleDiscountPercent] = useState(10)
+
+  // Funciones de utilidad para cálculo bidireccional
+  const calculateDiscountedPrice = (basePrice: number, percent: number) => {
+    return basePrice * (1 - percent / 100)
+  }
+
+  const calculatePercentFromPrice = (basePrice: number, discountedPrice: number) => {
+    if (basePrice === 0) return 0
+    const percent = ((basePrice - discountedPrice) / basePrice) * 100
+    return Math.max(0, Math.min(100, Math.round(percent)))
+  }
+
   // Generador de variantes
   const [sizeType, setSizeType] = useState<'letters' | 'numbers'>('letters')
   const [selectedSizes, setSelectedSizes] = useState<string[]>([])
-  const [hasColors, setHasColors] = useState(false)
+  const [hasColors, setHasColors] = useState(() => {
+    // In edit mode, detect color variants by checking if any label contains ' - '
+    if (product?.variants && product.variants.length > 0) {
+      return product.variants.some((v) => v.label.includes(' - '))
+    }
+    return false
+  })
   const [colorsInput, setColorsInput] = useState('')
   // Cuando el usuario usa el generador en modo edición, los existentes quedan obsoletos
   const [variantsRegenerated, setVariantsRegenerated] = useState(false)
@@ -141,7 +163,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
       description: product?.description ?? '',
       base_price: product?.base_price ?? 0,
       is_on_sale: product?.is_on_sale ?? false,
-      sale_percent: product?.sale_percent ?? 0,
+      sale_percent: product?.sale_percent ?? 10,
       category_id: product?.category_id ?? '',
       gender: product?.gender ?? 'unisex',
       is_made_to_order: product?.is_made_to_order ?? false,
@@ -357,13 +379,18 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="base_price">Precio lista (ARS) *</Label>
-            <Input
-              id="base_price"
-              type="number"
-              min="0"
-              step="1"
-              {...register('base_price')}
-              placeholder="25000"
+            <Controller
+              name="base_price"
+              control={control}
+              render={({ field }) => (
+                <PriceInput
+                  id="base_price"
+                  value={field.value ?? null}
+                  onChange={(v) => field.onChange(v ?? 0)}
+                  onBlur={field.onBlur}
+                  placeholder="25.000,00"
+                />
+              )}
             />
             {errors.base_price && (
               <p className="text-xs text-destructive">{errors.base_price.message}</p>
@@ -410,61 +437,104 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
           </div>
         </div>
 
-        {/* Oferta / descuento */}
-        <div className="flex flex-wrap gap-6 pt-1">
-          <div className="flex items-center gap-3">
-            <Switch
-              id="is_on_sale"
-              defaultChecked={product?.is_on_sale ?? false}
-              onCheckedChange={(v) => setValue('is_on_sale', v)}
-            />
-            <Label htmlFor="is_on_sale" className="cursor-pointer">En oferta</Label>
+        {/* Descuentos - Transferencia y Oferta */}
+        <div className="space-y-4">
+          {/* Transferencia */}
+          <div className="flex items-center gap-4">
+            <div className="w-24 space-y-1.5">
+              <Label>% Desc</Label>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                value={transferDiscountPercent}
+                onChange={(e) => setTransferDiscountPercent(Number(e.target.value))}
+                placeholder="20"
+              />
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <Label>Precio Transferencia</Label>
+              <Input
+                value={watchedBasePrice ? formatPrice(calculateDiscountedPrice(watchedBasePrice, transferDiscountPercent)) : ''}
+                readOnly
+                className="bg-muted"
+                placeholder="20.000,00"
+              />
+            </div>
+          </div>
+
+          {/* Oferta */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <Switch
+                id="is_on_sale"
+                defaultChecked={product?.is_on_sale ?? false}
+                onCheckedChange={(v) => setValue('is_on_sale', v)}
+              />
+              <Label htmlFor="is_on_sale" className="cursor-pointer">En oferta</Label>
+            </div>
+            {watchedIsOnSale && (
+              <>
+                <div className="w-24 space-y-1.5">
+                  <Label>% Desc</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={saleDiscountPercent}
+                    onChange={(e) => setSaleDiscountPercent(Number(e.target.value))}
+                    placeholder="10"
+                  />
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <Label>Precio Oferta</Label>
+                  <Input
+                    value={watchedBasePrice ? formatPrice(calculateDiscountedPrice(watchedBasePrice, saleDiscountPercent)) : ''}
+                    readOnly
+                    className="bg-muted"
+                    placeholder="20.000,00"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {watchedIsOnSale && (
-          <div className="space-y-1.5 max-w-[200px]">
-            <Label htmlFor="sale_percent">% de descuento</Label>
-            <Input
-              id="sale_percent"
-              type="number"
-              min="0"
-              max="100"
-              step="1"
-              {...register('sale_percent')}
-              placeholder="20"
-            />
-            <p className="text-xs text-muted-foreground">
-              ≥ 30% muestra badge &quot;LIQUIDACIÓN&quot;
-            </p>
-          </div>
-        )}
-
         {/* Preview de precios en tiempo real */}
         {(watchedBasePrice || 0) > 0 && (
-          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-              Preview de precios — descuento transferencia: {cashDiscountPercent}%
+          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Preview de precios
             </p>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
-              <span className="text-muted-foreground">Precio lista</span>
-              <span className="font-medium text-slate-500 line-through">
-                {formatPrice(previewPrecios.precioLista)}
-              </span>
-              <span className="text-muted-foreground">Transferencia</span>
-              <span className="font-semibold text-emerald-700">
-                {formatPrice(previewPrecios.precioTransferencia)}
-              </span>
-              {previewPrecios.precioOferta !== null && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Precio lista</span>
+                <span className="font-medium text-slate-500">
+                  {formatPrice(previewPrecios.precioLista)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Transferencia ({transferDiscountPercent}%)</span>
+                <span className="font-semibold text-emerald-700">
+                  {formatPrice(calculateDiscountedPrice(watchedBasePrice || 0, transferDiscountPercent))}
+                </span>
+              </div>
+              {watchedIsOnSale && (
                 <>
-                  <span className="text-muted-foreground">Oferta (lista)</span>
-                  <span className="font-medium text-orange-700">
-                    {formatPrice(previewPrecios.precioOferta)}
-                  </span>
-                  <span className="text-muted-foreground">Oferta + transferencia</span>
-                  <span className="font-bold text-emerald-700">
-                    {formatPrice(previewPrecios.precioOfertaTransferencia!)}
-                  </span>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">Oferta ({saleDiscountPercent}% descuento)</span>
+                    <span className="font-medium text-orange-700">
+                      {formatPrice(calculateDiscountedPrice(watchedBasePrice || 0, saleDiscountPercent))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">Oferta + transferencia</span>
+                    <span className="font-bold text-emerald-700">
+                      {formatPrice(calculateDiscountedPrice(calculateDiscountedPrice(watchedBasePrice || 0, saleDiscountPercent), transferDiscountPercent))}
+                    </span>
+                  </div>
                 </>
               )}
             </div>
@@ -472,14 +542,6 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
         )}
 
         <div className="flex flex-wrap gap-6 pt-1">
-          <div className="flex items-center gap-3">
-            <Switch
-              id="active"
-              defaultChecked={product?.active ?? true}
-              onCheckedChange={(v) => setValue('active', v)}
-            />
-            <Label htmlFor="active" className="cursor-pointer">Producto activo</Label>
-          </div>
           <div className="flex items-center gap-3">
             <Switch
               id="is_made_to_order"
@@ -548,7 +610,16 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
           <Switch
             id="has_colors"
             checked={hasColors}
-            onCheckedChange={(v) => { setHasColors(v); if (!v) setColorsInput('') }}
+            onCheckedChange={(v) => {
+              setHasColors(v)
+              if (!v) {
+                setColorsInput('')
+                // Clear all pending image files when removing colors
+                Object.values(variantPreviews).forEach((url) => URL.revokeObjectURL(url))
+                setVariantImageFiles({})
+                setVariantPreviews({})
+              }
+            }}
           />
           <Label htmlFor="has_colors" className="cursor-pointer">¿Tiene colores?</Label>
         </div>
@@ -603,12 +674,11 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                     <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-32">
                       Stock *
                     </th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-40 hidden sm:table-cell">
-                      Precio override
-                    </th>
-                    <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">
-                      Imagen
-                    </th>
+                    {hasColors && (
+                      <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">
+                        Imagen
+                      </th>
+                    )}
                     <th className="w-12" />
                   </tr>
                 </thead>
@@ -640,79 +710,71 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                           )}
                         </td>
 
-                        {/* Precio override */}
-                        <td className="px-4 py-2.5 hidden sm:table-cell">
-                          <Input
-                            {...register(`variants.${index}.price_override`)}
-                            type="number"
-                            min="0"
-                            placeholder="— precio base"
-                            className="h-8 w-36 text-sm"
-                          />
-                        </td>
 
-                        {/* Imagen */}
-                        <td className="px-4 py-2.5">
-                          <div className="flex justify-center">
-                            {displayUrl ? (
-                              <div className="relative group/img">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={displayUrl}
-                                  alt={field.label}
-                                  className="h-10 w-10 rounded object-cover border border-border"
-                                />
-                                {/* Botón quitar — solo para selecciones nuevas */}
-                                {isNew && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleImageRemove(index)}
-                                    className="absolute -top-1.5 -right-1.5 hidden group-hover/img:flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow"
-                                    title="Quitar imagen"
-                                  >
-                                    <X className="h-2.5 w-2.5" />
-                                  </button>
-                                )}
-                                {/* Badge si es imagen existente (no nueva) */}
-                                {!isNew && (
-                                  <label
-                                    className="absolute -top-1.5 -right-1.5 hidden group-hover/img:flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground shadow"
-                                    title="Reemplazar imagen"
-                                  >
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      className="hidden"
-                                      onChange={(e) => {
-                                        const f = e.target.files?.[0]
-                                        if (f) handleImageSelect(index, f)
-                                        e.target.value = ''
-                                      }}
-                                    />
-                                    <ImagePlus className="h-2.5 w-2.5" />
-                                  </label>
-                                )}
-                              </div>
-                            ) : (
-                              <label
-                                className="flex h-10 w-10 cursor-pointer items-center justify-center rounded border border-dashed border-border hover:border-primary/60 hover:bg-accent transition-colors"
-                                title="Subir imagen"
-                              >
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const f = e.target.files?.[0]
-                                    if (f) handleImageSelect(index, f)
-                                    e.target.value = ''
-                                  }}
-                                />
-                                <ImagePlus className="h-4 w-4 text-muted-foreground" />
-                              </label>
-                            )}
-                          </div>
-                        </td>
+                        {/* Imagen — only for color variants */}
+                        {hasColors && (
+                          <td className="px-4 py-2.5">
+                            <div className="flex justify-center">
+                              {displayUrl ? (
+                                <div className="relative group/img">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={displayUrl}
+                                    alt={field.label}
+                                    className="h-10 w-10 rounded object-cover border border-border"
+                                  />
+                                  {/* Botón quitar — solo para selecciones nuevas */}
+                                  {isNew && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleImageRemove(index)}
+                                      className="absolute -top-1.5 -right-1.5 hidden group-hover/img:flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow"
+                                      title="Quitar imagen"
+                                    >
+                                      <X className="h-2.5 w-2.5" />
+                                    </button>
+                                  )}
+                                  {/* Badge si es imagen existente (no nueva) */}
+                                  {!isNew && (
+                                    <label
+                                      className="absolute -top-1.5 -right-1.5 hidden group-hover/img:flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground shadow"
+                                      title="Reemplazar imagen"
+                                    >
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const f = e.target.files?.[0]
+                                          if (f) handleImageSelect(index, f)
+                                          e.target.value = ''
+                                        }}
+                                      />
+                                      <ImagePlus className="h-2.5 w-2.5" />
+                                    </label>
+                                  )}
+                                </div>
+                              ) : (
+                                <label
+                                  className="flex h-10 w-10 cursor-pointer items-center justify-center rounded border border-dashed border-border hover:border-primary/60 hover:bg-accent transition-colors"
+                                  title="Subir imagen"
+                                >
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0]
+                                      if (f) handleImageSelect(index, f)
+                                      e.target.value = ''
+                                    }}
+                                  />
+                                  <ImagePlus className="h-4 w-4 text-muted-foreground" />
+                                </label>
+                              )}
+                            </div>
+                          </td>
+                        )}
 
                         {/* Eliminar variante */}
                         <td className="px-4 py-2.5 text-right">

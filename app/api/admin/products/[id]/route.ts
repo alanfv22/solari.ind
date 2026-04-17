@@ -20,6 +20,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   return Response.json({ data })
 }
 
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+}
+
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!verifyAdminRequest(request)) return unauthorizedResponse()
 
@@ -28,6 +38,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const body = await request.json()
 
   const { variants, ...productData } = body
+
+  // Auto-generate slug from name if not provided
+  if (!productData.slug && productData.name) {
+    productData.slug = generateSlug(productData.name)
+  }
 
   const { data: product, error } = await db
     .from('products')
@@ -93,14 +108,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const paths = images.map((img: { url: string }) => {
       try {
         const url = new URL(img.url)
-        return url.pathname.replace('/storage/v1/object/public/product-images/', '')
+        return url.pathname.replace('/storage/v1/object/public/solari-ind/', '')
       } catch {
         return null
       }
     }).filter(Boolean) as string[]
 
     if (paths.length > 0) {
-      await db.storage.from('product-images').remove(paths)
+      await db.storage.from('solari-ind').remove(paths)
     }
   }
 

@@ -19,7 +19,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useCartStore } from '@/lib/cart-store'
 import { fetchProductBySlug, fetchRelatedProducts, formatPrice } from '@/lib/data'
 import { calcularPrecios } from '@/lib/utils'
-import { useCartStore } from '@/lib/cart-store'
 import type { Product, ProductVariant } from '@/lib/types'
 
 interface ProductPageProps {
@@ -43,7 +42,8 @@ export default function ProductPage({ params }: ProductPageProps) {
       setProduct(p)
       if (p) {
         const firstAvailable =
-          p.variants?.find((v) => v.type === 'size' && v.stock > 0) ??
+          p.variants?.find((v) => (!v.type || v.type === 'size') && v.stock > 0) ??
+          p.variants?.find((v) => v.stock > 0) ??
           p.variants?.[0] ??
           null
         setSelectedVariant(firstAvailable)

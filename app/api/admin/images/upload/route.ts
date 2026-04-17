@@ -1,7 +1,7 @@
 import { getAdminSupabase } from '@/lib/supabase-admin'
 import { verifyAdminRequest, unauthorizedResponse } from '@/lib/admin-auth'
 
-const BUCKET = 'product-images'
+const BUCKET = 'solari-ind'
 
 export async function POST(request: Request) {
   if (!verifyAdminRequest(request)) return unauthorizedResponse()

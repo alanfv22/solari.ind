@@ -19,6 +19,16 @@ export async function GET(request: Request) {
   return Response.json({ data })
 }
 
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove accents
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+}
+
 export async function POST(request: Request) {
   if (!verifyAdminRequest(request)) return unauthorizedResponse()
 
@@ -26,6 +36,11 @@ export async function POST(request: Request) {
   const body = await request.json()
 
   const { variants, ...productData } = body
+
+  // Auto-generate slug from name if not provided
+  if (!productData.slug && productData.name) {
+    productData.slug = generateSlug(productData.name)
+  }
 
   // Get max sort_order
   const { data: lastProduct } = await db

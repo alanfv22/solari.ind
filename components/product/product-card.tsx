@@ -97,7 +97,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           <div className="absolute top-3 left-3 flex flex-col gap-1.5">
             {product.is_on_sale && (
               <span className="flex h-10 w-10 items-center justify-center bg-orange-800 text-[10px] font-bold uppercase tracking-wide text-orange-100">
-                {product.sale_percent >= 30 ? 'LIQD.' : 'OFERTA'}
+                {(product.sale_percent ?? 0) >= 30 ? 'LIQD.' : 'OFERTA'}
               </span>
             )}
             {product.is_made_to_order && (
