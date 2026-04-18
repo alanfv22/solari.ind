@@ -1,22 +1,22 @@
-'use client'
+﻿'use client'
 
-import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Instagram, MapPin, MessageCircle } from 'lucide-react'
-import { fetchStore } from '@/lib/data'
-import type { Store } from '@/lib/types'
+import { useStoreWhatsApp } from '@/hooks/use-store-whatsapp'
+
+// Dirección del local — se muestra siempre como fallback
+const FALLBACK_ADDRESS = 'Ontiveros 30 (Maq. Savio, Escobar, BSAS)'
+const INSTAGRAM_URL = 'https://instagram.com/solari.ind'
+const WHATSAPP_GREETING = 'Hola! Me gustaría hacer una consulta sobre los productos de Solari.'
 
 export function Footer() {
-  const [store, setStore] = useState<Store | null>(null)
+  const { whatsappDigits, loading } = useStoreWhatsApp()
 
-  useEffect(() => {
-    fetchStore().then(setStore)
-  }, [])
-
-  const whatsappNumber = store?.whatsapp_number?.replace(/\D/g, '') ?? ''
-  const whatsappHref = whatsappNumber ? `https://wa.me/${whatsappNumber}` : '#'
-  const instagramUrl = store?.instagram_url ?? 'https://instagram.com/solari.ind'
-  const address = store?.address ?? null
+  const whatsappHref = whatsappDigits
+    ? `https://wa.me/${whatsappDigits}?text=${encodeURIComponent(WHATSAPP_GREETING)}`
+    : '#'
+  const instagramUrl = INSTAGRAM_URL
+  const address = FALLBACK_ADDRESS
 
   return (
     <footer className="border-t border-border bg-background">
@@ -62,19 +62,18 @@ export function Footer() {
               Contacto
             </h3>
             <ul className="flex flex-col gap-4">
-              {whatsappNumber && (
-                <li className="flex items-center gap-3 group">
-                  <MessageCircle className="h-4 w-4 text-muted-foreground group-hover:text-[#25D366] transition-colors" />
-                  <a
-                    href={whatsappHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    WhatsApp
-                  </a>
-                </li>
-              )}
+              <li className="flex items-center gap-3 group">
+                <MessageCircle className="h-4 w-4 text-muted-foreground group-hover:text-[#25D366] transition-colors" />
+                <a
+                  href={loading ? undefined : whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-disabled={loading}
+                  className={`text-sm transition-colors ${loading ? 'text-muted-foreground/50 cursor-default' : 'text-muted-foreground hover:text-[#25D366]'}`}
+                >
+                  WhatsApp
+                </a>
+              </li>
 
               <li className="flex items-center gap-3 group">
                 <Instagram className="h-4 w-4 text-muted-foreground group-hover:text-[#E1306C] transition-colors" />
@@ -88,14 +87,12 @@ export function Footer() {
                 </a>
               </li>
 
-              {address && (
-                <li className="flex items-start gap-3 group">
-                  <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                  <span className="text-sm text-muted-foreground leading-snug">
-                    {address}
-                  </span>
-                </li>
-              )}
+              <li className="flex items-start gap-3 group">
+                <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                <span className="text-sm text-muted-foreground leading-snug">
+                  {address}
+                </span>
+              </li>
             </ul>
           </div>
 

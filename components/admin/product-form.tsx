@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useForm, useFieldArray, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -111,40 +111,23 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
   const [saving, setSaving] = useState(false)
   const cashDiscountPercent = useCartStore((s) => s.cashDiscountPercent)
 
-  // Estado local para descuentos bidireccionales
   const [transferDiscountPercent, setTransferDiscountPercent] = useState(20)
   const [saleDiscountPercent, setSaleDiscountPercent] = useState(10)
 
-  // Funciones de utilidad para cálculo bidireccional
-  const calculateDiscountedPrice = (basePrice: number, percent: number) => {
-    return basePrice * (1 - percent / 100)
-  }
-
-  const calculatePercentFromPrice = (basePrice: number, discountedPrice: number) => {
-    if (basePrice === 0) return 0
-    const percent = ((basePrice - discountedPrice) / basePrice) * 100
-    return Math.max(0, Math.min(100, Math.round(percent)))
-  }
+  const calculateDiscountedPrice = (basePrice: number, percent: number) =>
+    basePrice * (1 - percent / 100)
 
   // Generador de variantes
   const [sizeType, setSizeType] = useState<'letters' | 'numbers'>('letters')
   const [selectedSizes, setSelectedSizes] = useState<string[]>([])
-  const [hasColors, setHasColors] = useState(() => {
-    // In edit mode, detect color variants by checking if any label contains ' - '
-    if (product?.variants && product.variants.length > 0) {
-      return product.variants.some((v) => v.label.includes(' - '))
-    }
-    return false
-  })
   const [colorsInput, setColorsInput] = useState('')
-  // Cuando el usuario usa el generador en modo edición, los existentes quedan obsoletos
   const [variantsRegenerated, setVariantsRegenerated] = useState(false)
 
-  // Imágenes por variante (keyed por índice del fieldArray)
-  const [variantImageFiles, setVariantImageFiles] = useState<Record<number, File>>({})
-  const [variantPreviews, setVariantPreviews] = useState<Record<number, string>>({})
+  // Imágenes del producto (único bloque compartido)
+  const [productImages, setProductImages] = useState<File[]>([])
+  const [productPreviews, setProductPreviews] = useState<string[]>([])
+  const [imageSubmitAttempted, setImageSubmitAttempted] = useState(false)
 
-  // Imágenes existentes del producto (modo edición), ordenadas por sort_order
   const existingImages = (product?.images ?? [])
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order)
@@ -181,7 +164,6 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
 
   const { fields, remove, replace } = useFieldArray({ control, name: 'variants' })
 
-  // Valores en tiempo real para el preview de precios
   const watchedBasePrice = watch('base_price')
   const watchedIsOnSale = watch('is_on_sale')
   const watchedSalePercent = watch('sale_percent')
@@ -192,40 +174,22 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
     watchedSalePercent || 0
   )
 
-  // ─── Manejo de imágenes por variante ───────────────────────────────────────
+  const parsedColors = colorsInput.split(',').map((c) => c.trim()).filter(Boolean)
 
-  function handleImageSelect(index: number, file: File) {
-    // Revocar preview anterior si existe
-    if (variantPreviews[index]) URL.revokeObjectURL(variantPreviews[index])
-    setVariantImageFiles((prev) => ({ ...prev, [index]: file }))
-    setVariantPreviews((prev) => ({ ...prev, [index]: URL.createObjectURL(file) }))
+  // ─── Manejo de imágenes del producto ──────────────────────────────────────
+
+  function handleProductImagesAdd(files: FileList) {
+    const newFiles = Array.from(files)
+    const newPreviews = newFiles.map((f) => URL.createObjectURL(f))
+    setProductImages((prev) => [...prev, ...newFiles])
+    setProductPreviews((prev) => [...prev, ...newPreviews])
   }
 
-  function handleImageRemove(index: number) {
-    if (variantPreviews[index]) URL.revokeObjectURL(variantPreviews[index])
-    setVariantImageFiles((prev) => { const n = { ...prev }; delete n[index]; return n })
-    setVariantPreviews((prev) => { const n = { ...prev }; delete n[index]; return n })
-  }
-
-  // Al eliminar una variante hay que re-indexar el mapa de imágenes
-  function handleRemoveVariant(index: number) {
-    handleImageRemove(index)
-
-    const newFiles: Record<number, File> = {}
-    const newPreviews: Record<number, string> = {}
-    Object.entries(variantImageFiles).forEach(([i, file]) => {
-      const idx = parseInt(i)
-      if (idx === index) return
-      newFiles[idx > index ? idx - 1 : idx] = file
-    })
-    Object.entries(variantPreviews).forEach(([i, url]) => {
-      const idx = parseInt(i)
-      if (idx === index) return
-      newPreviews[idx > index ? idx - 1 : idx] = url
-    })
-    setVariantImageFiles(newFiles)
-    setVariantPreviews(newPreviews)
-    remove(index)
+  function handleProductImageRemove(index: number) {
+    const url = productPreviews[index]
+    if (url) URL.revokeObjectURL(url)
+    setProductImages((prev) => prev.filter((_, i) => i !== index))
+    setProductPreviews((prev) => prev.filter((_, i) => i !== index))
   }
 
   // ─── Generador de variantes ────────────────────────────────────────────────
@@ -243,48 +207,46 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
 
   function handleGenerate() {
     if (selectedSizes.length === 0) { toast.warning('Seleccioná al menos un talle'); return }
+    if (parsedColors.length === 0) { toast.warning('Ingresá al menos un color'); return }
 
     const ordered = (sizeType === 'letters' ? LETTER_SIZES : NUMBER_SIZES).filter((s) =>
       selectedSizes.includes(s)
     )
-    const colors = hasColors
-      ? colorsInput.split(',').map((c) => c.trim()).filter(Boolean)
-      : []
 
     type NewVariant = { label: string; price_override: null; stock: number; active: boolean }
     const newVariants: NewVariant[] = []
 
-    if (colors.length === 0) {
-      ordered.forEach((size) => newVariants.push({ label: size, price_override: null, stock: 0, active: true }))
-    } else {
-      ordered.forEach((size) =>
-        colors.forEach((color) =>
-          newVariants.push({ label: `${size} - ${color}`, price_override: null, stock: 0, active: true })
-        )
+    ordered.forEach((size) =>
+      parsedColors.forEach((color) =>
+        newVariants.push({ label: `${size} - ${color}`, price_override: null, stock: 0, active: true })
       )
-    }
+    )
 
-    // Limpiar todas las imágenes (las variantes cambiaron completamente)
-    Object.values(variantPreviews).forEach((url) => URL.revokeObjectURL(url))
-    setVariantImageFiles({})
-    setVariantPreviews({})
     setVariantsRegenerated(true)
-
     replace(newVariants)
     toast.success(`${newVariants.length} variante${newVariants.length !== 1 ? 's' : ''} generada${newVariants.length !== 1 ? 's' : ''}`)
   }
 
-  const colorCount = hasColors ? colorsInput.split(',').map((c) => c.trim()).filter(Boolean).length : 0
-  const previewCount = selectedSizes.length > 0
-    ? colorCount > 0 ? selectedSizes.length * colorCount : selectedSizes.length
-    : 0
+  const previewCount =
+    selectedSizes.length > 0 && parsedColors.length > 0
+      ? selectedSizes.length * parsedColors.length
+      : 0
 
   // ─── Submit ────────────────────────────────────────────────────────────────
 
   async function onSubmit(data: ProductFormData) {
+    // Validar imágenes manualmente (modo nuevo: obligatorio; edición: obligatorio si no hay existentes)
+    const hasExistingImages = existingImages.length > 0
+    const hasNewImages = productImages.length > 0
+    if (!hasNewImages && !hasExistingImages) {
+      setImageSubmitAttempted(true)
+      toast.error('Agregá al menos una imagen del producto')
+      return
+    }
+    setImageSubmitAttempted(true)
+
     setSaving(true)
     try {
-      // 1. Crear o actualizar producto
       const url = mode === 'new' ? '/api/admin/products' : `/api/admin/products/${product!.id}`
       const res = await fetch(url, {
         method: mode === 'new' ? 'POST' : 'PUT',
@@ -295,44 +257,36 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
       if (!res.ok) throw new Error(json.error || 'Error al guardar producto')
 
       const productId: string = mode === 'new' ? json.data.id : product!.id
-      const hasNewImages = Object.keys(variantImageFiles).length > 0
 
       if (hasNewImages || (mode === 'edit' && variantsRegenerated)) {
-        // 2. En modo edición: eliminar imágenes antiguas que serán reemplazadas
         if (mode === 'edit' && existingImages.length > 0) {
-          const toDelete = variantsRegenerated
-            ? existingImages // regenerado → borrar todas
-            : existingImages.filter((_, i) => variantImageFiles[i] !== undefined)
-
           await Promise.all(
-            toDelete.map((img) =>
+            existingImages.map((img) =>
               fetch(`/api/admin/images/${img.id}`, { method: 'DELETE' })
             )
           )
         }
 
-        // 3. Subir nuevas imágenes en orden de variante
-        let isPrimary = true // primera imagen = principal
-        for (let i = 0; i < data.variants.length; i++) {
-          const file = variantImageFiles[i]
-          if (!file) continue
+        if (hasNewImages) {
+          let isPrimary = true
+          for (const file of productImages) {
+            try {
+              const compressed = await compressImage(file)
+              const formData = new FormData()
+              formData.append('file', compressed, 'image.webp')
+              formData.append('productId', productId)
+              formData.append('isPrimary', isPrimary ? 'true' : 'false')
 
-          try {
-            const compressed = await compressImage(file)
-            const formData = new FormData()
-            formData.append('file', compressed, 'image.webp')
-            formData.append('productId', productId)
-            formData.append('isPrimary', isPrimary ? 'true' : 'false')
-
-            const imgRes = await fetch('/api/admin/images/upload', { method: 'POST', body: formData })
-            if (!imgRes.ok) {
-              const imgJson = await imgRes.json()
-              toast.error(`Error en imagen "${data.variants[i].label}": ${imgJson.error}`)
-            } else {
-              isPrimary = false
+              const imgRes = await fetch('/api/admin/images/upload', { method: 'POST', body: formData })
+              if (!imgRes.ok) {
+                const imgJson = await imgRes.json()
+                toast.error(`Error al subir imagen: ${imgJson.error}`)
+              } else {
+                isPrimary = false
+              }
+            } catch {
+              toast.error('No se pudo comprimir una imagen')
             }
-          } catch {
-            toast.error(`No se pudo comprimir la imagen de "${data.variants[i].label}"`)
           }
         }
       }
@@ -345,6 +299,13 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
       setSaving(false)
     }
   }
+
+  // Para la sección de fotos: mostrar nuevas si hay, sino las existentes (solo lectura)
+  const showingExisting = productPreviews.length === 0 && existingImages.length > 0
+  const imagePreviews = productPreviews.length > 0
+    ? productPreviews
+    : existingImages.map((img) => img.url)
+  const imageError = imageSubmitAttempted && productPreviews.length === 0 && existingImages.length === 0
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -437,9 +398,8 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
           </div>
         </div>
 
-        {/* Descuentos - Transferencia y Oferta */}
+        {/* Descuentos */}
         <div className="space-y-4">
-          {/* Transferencia */}
           <div className="flex items-center gap-4">
             <div className="w-24 space-y-1.5">
               <Label>% Desc</Label>
@@ -464,7 +424,6 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
             </div>
           </div>
 
-          {/* Oferta */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
               <Switch
@@ -502,7 +461,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
           </div>
         </div>
 
-        {/* Preview de precios en tiempo real */}
+        {/* Preview de precios */}
         {(watchedBasePrice || 0) > 0 && (
           <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -605,39 +564,19 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
           })}
         </div>
 
-        {/* Toggle colores */}
-        <div className="flex items-center gap-3">
-          <Switch
-            id="has_colors"
-            checked={hasColors}
-            onCheckedChange={(v) => {
-              setHasColors(v)
-              if (!v) {
-                setColorsInput('')
-                // Clear all pending image files when removing colors
-                Object.values(variantPreviews).forEach((url) => URL.revokeObjectURL(url))
-                setVariantImageFiles({})
-                setVariantPreviews({})
-              }
-            }}
+        {/* Colores — siempre visible y requerido */}
+        <div className="space-y-1.5">
+          <Label htmlFor="colors_input" className="text-sm">
+            Colores *{' '}
+            <span className="text-muted-foreground font-normal">(separados por coma)</span>
+          </Label>
+          <Input
+            id="colors_input"
+            value={colorsInput}
+            onChange={(e) => setColorsInput(e.target.value)}
+            placeholder="Negro, Blanco, Rosa palo"
           />
-          <Label htmlFor="has_colors" className="cursor-pointer">¿Tiene colores?</Label>
         </div>
-
-        {hasColors && (
-          <div className="space-y-1.5">
-            <Label htmlFor="colors_input" className="text-sm">
-              Colores{' '}
-              <span className="text-muted-foreground font-normal">(separados por coma)</span>
-            </Label>
-            <Input
-              id="colors_input"
-              value={colorsInput}
-              onChange={(e) => setColorsInput(e.target.value)}
-              placeholder="Negro, Blanco, Rosa palo"
-            />
-          </div>
-        )}
 
         {/* Botón generar */}
         <div className="flex items-center gap-3">
@@ -674,123 +613,39 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                     <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-32">
                       Stock *
                     </th>
-                    {hasColors && (
-                      <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">
-                        Imagen
-                      </th>
-                    )}
                     <th className="w-12" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {fields.map((field, index) => {
-                    // URL a mostrar: preview nueva > imagen existente (si no se regeneró)
-                    const displayUrl =
-                      variantPreviews[index] ??
-                      (!variantsRegenerated ? existingImages[index]?.url : undefined)
-                    const isNew = !!variantPreviews[index]
-
-                    return (
-                      <tr key={field.id} className="hover:bg-muted/20 transition-colors">
-                        {/* Label */}
-                        <td className="px-4 py-2.5 font-medium">{field.label}</td>
-
-                        {/* Stock */}
-                        <td className="px-4 py-2.5">
-                          <Input
-                            {...register(`variants.${index}.stock`)}
-                            type="number"
-                            min="0"
-                            className="h-8 w-24 text-sm"
-                          />
-                          {errors.variants?.[index]?.stock && (
-                            <p className="text-xs text-destructive mt-0.5">
-                              {errors.variants[index]?.stock?.message}
-                            </p>
-                          )}
-                        </td>
-
-
-                        {/* Imagen — only for color variants */}
-                        {hasColors && (
-                          <td className="px-4 py-2.5">
-                            <div className="flex justify-center">
-                              {displayUrl ? (
-                                <div className="relative group/img">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={displayUrl}
-                                    alt={field.label}
-                                    className="h-10 w-10 rounded object-cover border border-border"
-                                  />
-                                  {/* Botón quitar — solo para selecciones nuevas */}
-                                  {isNew && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleImageRemove(index)}
-                                      className="absolute -top-1.5 -right-1.5 hidden group-hover/img:flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow"
-                                      title="Quitar imagen"
-                                    >
-                                      <X className="h-2.5 w-2.5" />
-                                    </button>
-                                  )}
-                                  {/* Badge si es imagen existente (no nueva) */}
-                                  {!isNew && (
-                                    <label
-                                      className="absolute -top-1.5 -right-1.5 hidden group-hover/img:flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground shadow"
-                                      title="Reemplazar imagen"
-                                    >
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                          const f = e.target.files?.[0]
-                                          if (f) handleImageSelect(index, f)
-                                          e.target.value = ''
-                                        }}
-                                      />
-                                      <ImagePlus className="h-2.5 w-2.5" />
-                                    </label>
-                                  )}
-                                </div>
-                              ) : (
-                                <label
-                                  className="flex h-10 w-10 cursor-pointer items-center justify-center rounded border border-dashed border-border hover:border-primary/60 hover:bg-accent transition-colors"
-                                  title="Subir imagen"
-                                >
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                      const f = e.target.files?.[0]
-                                      if (f) handleImageSelect(index, f)
-                                      e.target.value = ''
-                                    }}
-                                  />
-                                  <ImagePlus className="h-4 w-4 text-muted-foreground" />
-                                </label>
-                              )}
-                            </div>
-                          </td>
+                  {fields.map((field, index) => (
+                    <tr key={field.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-4 py-2.5 font-medium">{field.label}</td>
+                      <td className="px-4 py-2.5">
+                        <Input
+                          {...register(`variants.${index}.stock`)}
+                          type="number"
+                          min="0"
+                          className="h-8 w-24 text-sm"
+                        />
+                        {errors.variants?.[index]?.stock && (
+                          <p className="text-xs text-destructive mt-0.5">
+                            {errors.variants[index]?.stock?.message}
+                          </p>
                         )}
-
-                        {/* Eliminar variante */}
-                        <td className="px-4 py-2.5 text-right">
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleRemoveVariant(index)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => remove(index)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -805,8 +660,96 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
             <p className={cn('text-sm', submitCount > 0 ? 'text-destructive' : 'text-muted-foreground')}>
               {submitCount > 0
                 ? 'Agregá al menos una variante antes de guardar'
-                : 'Seleccioná talles y hacé clic en Generar variantes'}
+                : 'Seleccioná talles y colores, luego hacé clic en Generar variantes'}
             </p>
+          </div>
+        )}
+      </section>
+
+      <Separator />
+
+      {/* ── Fotos del producto ─────────────────────────────────────────────── */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Fotos del producto *
+          </h2>
+          {showingExisting && (
+            <span className="text-xs text-muted-foreground">
+              Subí nuevas fotos para reemplazar las actuales
+            </span>
+          )}
+        </div>
+
+        {/* Drop zone */}
+        <label
+          className={cn(
+            'flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-8 cursor-pointer transition-colors',
+            imageError
+              ? 'border-destructive/60 bg-destructive/5 hover:border-destructive'
+              : 'border-border hover:border-primary/60 hover:bg-accent'
+          )}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault()
+            if (e.dataTransfer.files.length > 0) handleProductImagesAdd(e.dataTransfer.files)
+          }}
+        >
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files?.length) handleProductImagesAdd(e.target.files)
+              e.target.value = ''
+            }}
+          />
+          <ImagePlus className={cn('h-7 w-7', imageError ? 'text-destructive/70' : 'text-muted-foreground')} />
+          <span className={cn('text-sm text-center', imageError ? 'text-destructive' : 'text-muted-foreground')}>
+            Arrastrá fotos aquí o{' '}
+            <span className={cn('font-medium', imageError ? 'text-destructive' : 'text-primary')}>
+              elegí archivos
+            </span>
+          </span>
+          <span className="text-xs text-muted-foreground">
+            Podés subir múltiples fotos a la vez · La primera será la imagen principal
+          </span>
+        </label>
+
+        {imageError && (
+          <p className="text-xs text-destructive">Agregá al menos una imagen del producto</p>
+        )}
+
+        {/* Previews */}
+        {imagePreviews.length > 0 && (
+          <div className="flex flex-wrap gap-3">
+            {imagePreviews.map((url, i) => (
+              <div key={i} className="relative group/img">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={`Foto ${i + 1}`}
+                  className="h-24 w-24 rounded-lg object-cover border border-border"
+                />
+                {/* Solo permití eliminar imágenes nuevas (no las existentes) */}
+                {!showingExisting && (
+                  <button
+                    type="button"
+                    onClick={() => handleProductImageRemove(i)}
+                    className="absolute -top-1.5 -right-1.5 hidden group-hover/img:flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow"
+                    title="Quitar foto"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+                {i === 0 && (
+                  <span className="absolute bottom-1 left-1 rounded text-[9px] font-semibold bg-black/60 text-white px-1 leading-4">
+                    Principal
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </section>
