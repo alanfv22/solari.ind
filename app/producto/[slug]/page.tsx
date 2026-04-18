@@ -15,7 +15,15 @@ import { QuantitySelector } from '@/components/product/quantity-selector'
 import { ProductGrid } from '@/components/home/product-grid'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useCartStore } from '@/lib/cart-store'
 import { fetchProductBySlug, fetchRelatedProducts, formatPrice } from '@/lib/data'
 import { calcularPrecios } from '@/lib/utils'
@@ -25,6 +33,40 @@ interface ProductPageProps {
   params: Promise<{ slug: string }>
 }
 
+// ─── Helpers para variantes con color ────────────────────────────────────────
+
+function parseSizeColor(label: string): { size: string; color: string } {
+  const idx = label.indexOf(' - ')
+  if (idx === -1) return { size: label, color: '' }
+  return { size: label.slice(0, idx), color: label.slice(idx + 3) }
+}
+
+function getUniqueSizes(variants: ProductVariant[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const v of variants) {
+    const { size } = parseSizeColor(v.label)
+    if (!seen.has(size)) { seen.add(size); result.push(size) }
+  }
+  return result
+}
+
+function getColorsForSize(variants: ProductVariant[], size: string): ProductVariant[] {
+  return variants.filter((v) => {
+    const { size: s } = parseSizeColor(v.label)
+    return s === size
+  })
+}
+
+function findVariant(variants: ProductVariant[], size: string, color: string): ProductVariant | null {
+  return variants.find((v) => {
+    const { size: s, color: c } = parseSizeColor(v.label)
+    return s === size && c === color
+  }) ?? null
+}
+
+// ─── Componente ──────────────────────────────────────────────────────────────
+
 export default function ProductPage({ params }: ProductPageProps) {
   const resolvedParams = use(params)
 
@@ -32,6 +74,8 @@ export default function ProductPage({ params }: ProductPageProps) {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
+  const [selectedSize, setSelectedSize] = useState<string | null>(null)
+  const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)
 
   const { addItem, cashDiscountPercent } = useCartStore()
@@ -40,28 +84,60 @@ export default function ProductPage({ params }: ProductPageProps) {
     setIsLoading(true)
     fetchProductBySlug(resolvedParams.slug).then((p) => {
       setProduct(p)
-      if (p) {
-        const firstAvailable =
-          p.variants?.find((v) => (!v.type || v.type === 'size') && v.stock > 0) ??
-          p.variants?.find((v) => v.stock > 0) ??
-          p.variants?.[0] ??
-          null
-        setSelectedVariant(firstAvailable)
+      if (p?.variants?.length) {
+        const hasColors = p.variants.some((v) => v.label.includes(' - '))
+        if (hasColors) {
+          const first = p.variants.find((v) => v.stock > 0) ?? p.variants[0]
+          if (first) {
+            const { size, color } = parseSizeColor(first.label)
+            setSelectedSize(size)
+            setSelectedColor(color)
+            setSelectedVariant(first)
+          }
+        } else {
+          const first = p.variants.find((v) => v.stock > 0) ?? p.variants[0] ?? null
+          setSelectedVariant(first)
+        }
         fetchRelatedProducts(p.gender, p.id).then(setRelatedProducts)
       }
       setIsLoading(false)
     })
   }, [resolvedParams.slug])
 
-  if (!isLoading && !product) {
-    notFound()
+  if (!isLoading && !product) notFound()
+
+  const hasColorVariants = product?.variants?.some((v) => v.label.includes(' - ')) ?? false
+
+  function handleSizeChange(size: string) {
+    if (!product?.variants) return
+    setSelectedSize(size)
+    const colors = getColorsForSize(product.variants, size)
+    // Keep current color if available for this size, else pick first
+    const keepColor = colors.find((v) => {
+      const { color: c } = parseSizeColor(v.label)
+      return c === selectedColor
+    })
+    const next = keepColor ?? colors.find((v) => v.stock > 0) ?? colors[0]
+    if (next) {
+      const { color } = parseSizeColor(next.label)
+      setSelectedColor(color)
+      setSelectedVariant(next)
+    }
+  }
+
+  function handleColorChange(color: string) {
+    if (!product?.variants || !selectedSize) return
+    setSelectedColor(color)
+    setSelectedVariant(findVariant(product.variants, selectedSize, color))
   }
 
   const basePrice = selectedVariant?.price_override ?? product?.base_price ?? 0
   const { precioLista, precioTransferencia, precioOferta, precioOfertaTransferencia } =
     calcularPrecios(basePrice, cashDiscountPercent, product?.is_on_sale ?? false, product?.sale_percent ?? 0)
   const selectedOutOfStock = selectedVariant !== null && selectedVariant.stock <= 0
-  const canAddToCart = product ? product.is_made_to_order || !selectedOutOfStock : false
+  const isOutOfStockInquiry = selectedOutOfStock && !(product?.is_made_to_order ?? false)
+  // Out-of-stock non-made-to-order items go to cart as "availability inquiry"
+  const canAddToCart = !!product && (!hasColorVariants || selectedVariant !== null)
 
   const handleAddToCart = () => {
     if (!product || !canAddToCart) return
@@ -148,19 +224,16 @@ export default function ProductPage({ params }: ProductPageProps) {
 
                   {/* Price */}
                   <div className="flex flex-col gap-1">
-                    {/* Lista tachado */}
                     <div className="flex items-baseline gap-2">
-                      <span className="text-base text-muted-foreground line-through">
+                      <span className={product.is_on_sale ? 'text-base text-muted-foreground line-through' : 'text-base text-muted-foreground'}>
                         {formatPrice(precioLista)}
                       </span>
-                      <span className="text-xs text-muted-foreground">lista</span>
                       {product.is_on_sale && (
                         <Badge variant="destructive" className="ml-1">
                           -{product.sale_percent}%
                         </Badge>
                       )}
                     </div>
-                    {/* Precio oferta (si aplica) */}
                     {precioOferta !== null && (
                       <div className="flex items-baseline gap-2">
                         <span className="text-xl font-semibold text-orange-700">
@@ -169,7 +242,6 @@ export default function ProductPage({ params }: ProductPageProps) {
                         <span className="text-xs text-orange-600">oferta</span>
                       </div>
                     )}
-                    {/* Precio transferencia (siempre) */}
                     <div className="flex items-baseline gap-2">
                       <span className="text-2xl font-bold text-emerald-700">
                         {formatPrice(precioOfertaTransferencia ?? precioTransferencia)}
@@ -185,19 +257,71 @@ export default function ProductPage({ params }: ProductPageProps) {
 
                   {/* Variant Selector */}
                   {product.variants && product.variants.length > 0 && (
-                    <VariantSelector
-                      variants={product.variants}
-                      selected={selectedVariant}
-                      onChange={setSelectedVariant}
-                      type="size"
-                    />
+                    hasColorVariants ? (
+                      <div className="flex gap-2">
+                        {/* Talle */}
+                        <div className="flex flex-col gap-1.5">
+                          <Label className="text-sm font-medium">Talle</Label>
+                          <Select
+                            value={selectedSize ?? ''}
+                            onValueChange={handleSizeChange}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccioná" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getUniqueSizes(product.variants).map((size) => (
+                                <SelectItem key={size} value={size}>
+                                  {size}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Color — filtrado por talle seleccionado */}
+                        <div className="flex flex-col gap-1.5">
+                          <Label className="text-sm font-medium">Color</Label>
+                          <Select
+                            value={selectedColor ?? ''}
+                            onValueChange={handleColorChange}
+                            disabled={!selectedSize}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccioná" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {selectedSize && getColorsForSize(product.variants, selectedSize).map((variant) => {
+                                const { color } = parseSizeColor(variant.label)
+                                const outOfStock = variant.stock <= 0 && !product.is_made_to_order
+                                return (
+                                  <SelectItem
+                                    key={color}
+                                    value={color}
+                                  >
+                                    {color}{outOfStock ? ' — sin stock' : ''}
+                                  </SelectItem>
+                                )
+                              })}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    ) : (
+                      <VariantSelector
+                        variants={product.variants}
+                        selected={selectedVariant}
+                        onChange={setSelectedVariant}
+                        type="size"
+                      />
+                    )
                   )}
 
                   {/* Quantity Selector */}
                   <QuantitySelector
                     quantity={quantity}
                     onChange={setQuantity}
-                    max={selectedVariant?.stock ?? 10}
+                    max={product.is_made_to_order ? 99 : (selectedVariant?.stock ?? 10)}
                   />
 
                   {/* Add to Cart Button */}
@@ -205,12 +329,10 @@ export default function ProductPage({ params }: ProductPageProps) {
                     onClick={handleAddToCart}
                     disabled={!canAddToCart}
                     size="lg"
-                    className="mt-2 gap-2"
+                    className={isOutOfStockInquiry ? 'mt-2 gap-2 bg-amber-600 hover:bg-amber-700 text-white' : 'mt-2 gap-2'}
                   >
                     <ShoppingBag className="h-5 w-5" />
-                    {selectedOutOfStock && !product.is_made_to_order
-                      ? 'Sin stock en este talle'
-                      : 'Agregar al carrito'}
+                    {isOutOfStockInquiry ? 'Consultar disponibilidad' : 'Agregar al carrito'}
                   </Button>
 
                   {/* Made to order notice */}

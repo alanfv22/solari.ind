@@ -34,7 +34,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const sizeVariants = product.variants?.filter((v) => v.type === 'size') ?? []
 
   const selectedOutOfStock = selectedVariant !== null && selectedVariant.stock <= 0
-  const canAddToCart = (product.is_made_to_order ?? false) || !selectedOutOfStock
+  const canAddToCart = true
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -126,7 +126,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               size="sm"
             >
               <ShoppingBag className="h-4 w-4" />
-              {selectedOutOfStock && !product.is_made_to_order ? 'Sin stock' : 'Agregar'}
+              {selectedOutOfStock && !product.is_made_to_order ? 'Consultar' : 'Agregar'}
             </Button>
             <Button
               onClick={handleQuickView}
@@ -153,34 +153,35 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
 
           {/* Price */}
           <div className="flex flex-col gap-0.5 pt-1">
-            {/* Precio lista tachado (solo si hay oferta) */}
-            {precioOferta !== null && (
-              <span className="text-xs text-slate-400 line-through">
+            {/* Precio lista tachado + badge de descuento (solo si hay oferta) */}
+            {precioOferta !== null ? (
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xs text-slate-400 line-through">
+                  {formatPrice(precioLista)}
+                </span>
+                {(product.sale_percent ?? 0) > 0 && (
+                  <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1 py-0.5 rounded leading-none">
+                    -{product.sale_percent}%
+                  </span>
+                )}
+              </div>
+            ) : (
+              <span className="text-xs text-slate-400">
                 {formatPrice(precioLista)}
               </span>
             )}
-            {/* Precio de oferta o precio lista */}
-            {precioOferta !== null ? (
-              <div className="flex items-baseline gap-2">
-                <span className="text-sm font-semibold text-orange-700">
-                  {formatPrice(precioOferta)}
-                </span>
-                <span className="text-[11px] text-slate-500">lista</span>
-              </div>
-            ) : (
-              <div className="flex items-baseline gap-2">
-                <span className="text-sm font-medium text-slate-500 line-through">
-                  {formatPrice(precioLista)}
-                </span>
-                <span className="text-[11px] text-slate-500">lista</span>
-              </div>
+            {/* Precio de oferta (solo si hay oferta) */}
+            {precioOferta !== null && (
+              <span className="text-sm font-semibold text-orange-700">
+                {formatPrice(precioOferta)}
+              </span>
             )}
             {/* Precio transferencia (siempre resaltado) */}
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-1.5">
               <span className="text-base font-bold text-emerald-700">
                 {formatPrice(precioOfertaTransferencia ?? precioTransferencia)}
               </span>
-              <span className="text-[11px] text-emerald-600">transferencia</span>
+              <span className="text-[11px] text-emerald-600">con Transferencia</span>
             </div>
           </div>
 

@@ -8,6 +8,14 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +31,7 @@ import type { Product } from '@/lib/types'
 
 type ProductRow = Pick<
   Product,
-  'id' | 'name' | 'base_price' | 'active' | 'gender' | 'is_made_to_order' | 'created_at'
+  'id' | 'name' | 'base_price' | 'active' | 'is_on_sale' | 'gender' | 'is_made_to_order' | 'created_at'
 > & {
   category: { name: string } | null
   images: { url: string; is_primary: boolean }[]
@@ -34,9 +42,12 @@ export default function ProductosPage() {
   const [products, setProducts] = useState<ProductRow[]>([])
   const [loading, setLoading] = useState(true)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [togglingOnSaleId, setTogglingOnSaleId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ProductRow | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
+  const [searchName, setSearchName] = useState('')
+  const [searchCategory, setSearchCategory] = useState('__all__')
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -78,6 +89,28 @@ export default function ProductosPage() {
     }
   }
 
+  async function handleToggleOnSale(product: ProductRow) {
+    setTogglingOnSaleId(product.id)
+    try {
+      const res = await fetch(`/api/admin/products/${product.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_on_sale: !product.is_on_sale }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+
+      setProducts((prev) =>
+        prev.map((p) => (p.id === product.id ? { ...p, is_on_sale: !p.is_on_sale } : p))
+      )
+      toast.success(product.is_on_sale ? 'Quitado de oferta' : 'Puesto en oferta')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al actualizar')
+    } finally {
+      setTogglingOnSaleId(null)
+    }
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return
     setDeleting(true)
@@ -96,6 +129,22 @@ export default function ProductosPage() {
     }
   }
 
+  // Categorías únicas para el dropdown
+  const uniqueCategories = Array.from(
+    new Map(
+      products
+        .filter((p) => p.category)
+        .map((p) => [p.category!.name, p.category!.name])
+    ).values()
+  ).sort()
+
+  // Filtrado en memoria
+  const filtered = products.filter((p) => {
+    const matchesName = p.name.toLowerCase().includes(searchName.toLowerCase())
+    const matchesCategory = searchCategory === '__all__' || p.category?.name === searchCategory
+    return matchesName && matchesCategory
+  })
+
   return (
     <div className="space-y-6 max-w-6xl">
       {/* Header */}
@@ -103,7 +152,7 @@ export default function ProductosPage() {
         <div>
           <h1 className="text-2xl font-bold font-serif">Productos</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {loading ? '...' : `${products.length} producto${products.length !== 1 ? 's' : ''}`}
+            {loading ? '...' : `${filtered.length} de ${products.length} producto${products.length !== 1 ? 's' : ''}`}
           </p>
         </div>
         <Button asChild>
@@ -113,6 +162,29 @@ export default function ProductosPage() {
           </Link>
         </Button>
       </div>
+
+      {/* Filtros */}
+      {!loading && products.length > 0 && (
+        <div className="flex gap-3 flex-wrap">
+          <Input
+            placeholder="Buscar por nombre..."
+            value={searchName}
+            onChange={(e) => setSearchName(e.target.value)}
+            className="max-w-xs"
+          />
+          <Select value={searchCategory} onValueChange={setSearchCategory}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Todas las categorías" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todas las categorías</SelectItem>
+              {uniqueCategories.map((cat) => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {/* Error */}
       {error && (
@@ -130,6 +202,10 @@ export default function ProductosPage() {
           <Button asChild className="mt-4" variant="outline">
             <Link href="/admin/productos/nuevo">Crear el primero</Link>
           </Button>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border p-10 text-center">
+          <p className="text-muted-foreground text-sm">No se encontraron productos con esos filtros.</p>
         </div>
       ) : (
         <div className="rounded-lg border border-border overflow-hidden">
@@ -156,7 +232,10 @@ export default function ProductosPage() {
                     Variantes
                   </th>
                   <th className="text-center px-4 py-3 font-medium text-muted-foreground">
-                    Estado
+                    Activo
+                  </th>
+                  <th className="text-center px-4 py-3 font-medium text-muted-foreground">
+                    Oferta
                   </th>
                   <th className="text-right px-4 py-3 font-medium text-muted-foreground">
                     Acciones
@@ -164,7 +243,7 @@ export default function ProductosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {products.map((product) => {
+                {filtered.map((product) => {
                   const primaryImage = product.images?.find((i) => i.is_primary) ?? product.images?.[0]
                   return (
                     <tr key={product.id} className="hover:bg-muted/30 transition-colors">
@@ -230,6 +309,24 @@ export default function ProductosPage() {
                             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                           ) : product.active ? (
                             <ToggleRight className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <ToggleLeft className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </button>
+                      </td>
+
+                      {/* On sale toggle */}
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => handleToggleOnSale(product)}
+                          disabled={togglingOnSaleId === product.id}
+                          className="inline-flex items-center justify-center disabled:opacity-50"
+                          title={product.is_on_sale ? 'Quitar oferta' : 'Poner en oferta'}
+                        >
+                          {togglingOnSaleId === product.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          ) : product.is_on_sale ? (
+                            <ToggleRight className="h-5 w-5 text-orange-500" />
                           ) : (
                             <ToggleLeft className="h-5 w-5 text-muted-foreground" />
                           )}

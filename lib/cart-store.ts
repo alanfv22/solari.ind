@@ -112,16 +112,48 @@ export const useCartStore = create<CartStore>()(
         const { items } = get()
         if (items.length === 0) return ''
 
-        let message = 'Hola! Me interesa hacer un pedido:\n\n'
+        const inStock     = items.filter(i => !i.product.is_made_to_order && (i.variant?.stock ?? 1) > 0)
+        const outOfStock  = items.filter(i => !i.product.is_made_to_order && (i.variant?.stock ?? 1) <= 0)
+        const madeToOrder = items.filter(i => i.product.is_made_to_order)
 
-        items.forEach((item) => {
-          const variantLabel = item.variant ? ` - ${item.variant.label}` : ''
-          message += `${item.product.name}${variantLabel} x ${item.quantity}\n`
-        })
+        let message = 'Hola! Me interesa hacer el siguiente pedido:\n'
 
-        message += `\nTotal: ${formatPrice(get().getSubtotal())}\n\n`
-        message += '¡Gracias!'
+        if (inStock.length > 0) {
+          message += '\n✅ *Disponibles:*\n'
+          inStock.forEach((item) => {
+            const label = item.variant ? ` - ${item.variant.label}` : ''
+            const price = item.variant?.price_override ?? item.product.base_price
+            message += `• ${item.product.name}${label} x${item.quantity} — ${formatPrice(price * item.quantity)}\n`
+          })
+        }
 
+        if (outOfStock.length > 0) {
+          message += '\n⏳ *Consulta de disponibilidad (sin stock):*\n'
+          outOfStock.forEach((item) => {
+            const label = item.variant ? ` - ${item.variant.label}` : ''
+            message += `• ${item.product.name}${label} x${item.quantity} — ¿cuándo ingresaría?\n`
+          })
+        }
+
+        if (madeToOrder.length > 0) {
+          message += '\n🧵 *A pedido:*\n'
+          madeToOrder.forEach((item) => {
+            const label = item.variant ? ` - ${item.variant.label}` : ''
+            message += `• ${item.product.name}${label} x${item.quantity}\n`
+          })
+        }
+
+        const billableSubtotal = [...inStock, ...madeToOrder].reduce((total, item) => {
+          const price = item.variant?.price_override ?? item.product.base_price
+          return total + price * item.quantity
+        }, 0)
+
+        if (billableSubtotal > 0) {
+          message += `\nTotal estimado: ${formatPrice(billableSubtotal)}`
+          if (outOfStock.length > 0) message += ' _(sujeto a disponibilidad de stock)_'
+        }
+
+        message += '\n\n¡Gracias!'
         return message
       },
 

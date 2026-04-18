@@ -128,9 +128,10 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
   const [productPreviews, setProductPreviews] = useState<string[]>([])
   const [imageSubmitAttempted, setImageSubmitAttempted] = useState(false)
 
-  const existingImages = (product?.images ?? [])
-    .slice()
-    .sort((a, b) => a.sort_order - b.sort_order)
+  // Imágenes existentes como estado para poder eliminarlas individualmente
+  const [existingImages, setExistingImages] = useState(
+    () => (product?.images ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)
+  )
 
   const {
     register,
@@ -166,6 +167,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
 
   const watchedBasePrice = watch('base_price')
   const watchedIsOnSale = watch('is_on_sale')
+  const watchedIsMadeToOrder = watch('is_made_to_order')
   const watchedSalePercent = watch('sale_percent')
   const previewPrecios = calcularPrecios(
     watchedBasePrice || 0,
@@ -190,6 +192,17 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
     if (url) URL.revokeObjectURL(url)
     setProductImages((prev) => prev.filter((_, i) => i !== index))
     setProductPreviews((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  async function handleExistingImageDelete(imgId: string) {
+    try {
+      const res = await fetch(`/api/admin/images/${imgId}`, { method: 'DELETE' })
+      if (!res.ok) { toast.error('No se pudo eliminar la imagen'); return }
+      setExistingImages((prev) => prev.filter((img) => img.id !== imgId))
+      toast.success('Imagen eliminada')
+    } catch {
+      toast.error('Error al eliminar la imagen')
+    }
   }
 
   // ─── Generador de variantes ────────────────────────────────────────────────
@@ -258,7 +271,8 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
 
       const productId: string = mode === 'new' ? json.data.id : product!.id
 
-      if (hasNewImages || (mode === 'edit' && variantsRegenerated)) {
+      if (hasNewImages) {
+        // En edición, borrar las imágenes existentes antes de subir las nuevas
         if (mode === 'edit' && existingImages.length > 0) {
           await Promise.all(
             existingImages.map((img) =>
@@ -267,26 +281,24 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
           )
         }
 
-        if (hasNewImages) {
-          let isPrimary = true
-          for (const file of productImages) {
-            try {
-              const compressed = await compressImage(file)
-              const formData = new FormData()
-              formData.append('file', compressed, 'image.webp')
-              formData.append('productId', productId)
-              formData.append('isPrimary', isPrimary ? 'true' : 'false')
+        let isPrimary = true
+        for (const file of productImages) {
+          try {
+            const compressed = await compressImage(file)
+            const formData = new FormData()
+            formData.append('file', compressed, 'image.webp')
+            formData.append('productId', productId)
+            formData.append('isPrimary', isPrimary ? 'true' : 'false')
 
-              const imgRes = await fetch('/api/admin/images/upload', { method: 'POST', body: formData })
-              if (!imgRes.ok) {
-                const imgJson = await imgRes.json()
-                toast.error(`Error al subir imagen: ${imgJson.error}`)
-              } else {
-                isPrimary = false
-              }
-            } catch {
-              toast.error('No se pudo comprimir una imagen')
+            const imgRes = await fetch('/api/admin/images/upload', { method: 'POST', body: formData })
+            if (!imgRes.ok) {
+              const imgJson = await imgRes.json()
+              toast.error(`Error al subir imagen: ${imgJson.error}`)
+            } else {
+              isPrimary = false
             }
+          } catch {
+            toast.error('No se pudo comprimir una imagen')
           }
         }
       }
@@ -300,11 +312,6 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
     }
   }
 
-  // Para la sección de fotos: mostrar nuevas si hay, sino las existentes (solo lectura)
-  const showingExisting = productPreviews.length === 0 && existingImages.length > 0
-  const imagePreviews = productPreviews.length > 0
-    ? productPreviews
-    : existingImages.map((img) => img.url)
   const imageError = imageSubmitAttempted && productPreviews.length === 0 && existingImages.length === 0
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -505,7 +512,12 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
             <Switch
               id="is_made_to_order"
               defaultChecked={product?.is_made_to_order ?? false}
-              onCheckedChange={(v) => setValue('is_made_to_order', v)}
+              onCheckedChange={(v) => {
+                setValue('is_made_to_order', v)
+                if (v) {
+                  fields.forEach((_, i) => setValue(`variants.${i}.stock`, 0))
+                }
+              }}
             />
             <Label htmlFor="is_made_to_order" className="cursor-pointer">A pedido</Label>
           </div>
@@ -625,7 +637,8 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                           {...register(`variants.${index}.stock`)}
                           type="number"
                           min="0"
-                          className="h-8 w-24 text-sm"
+                          disabled={watchedIsMadeToOrder}
+                          className="h-8 w-24 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                         {errors.variants?.[index]?.stock && (
                           <p className="text-xs text-destructive mt-0.5">
@@ -670,16 +683,77 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
 
       {/* ── Fotos del producto ─────────────────────────────────────────────── */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Fotos del producto *
-          </h2>
-          {showingExisting && (
-            <span className="text-xs text-muted-foreground">
-              Subí nuevas fotos para reemplazar las actuales
-            </span>
-          )}
-        </div>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Fotos del producto *
+        </h2>
+
+        {/* Imágenes existentes (modo edición) */}
+        {existingImages.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Imágenes actuales — podés eliminarlas individualmente o subir nuevas para reemplazarlas todas
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {existingImages.map((img, i) => (
+                <div key={img.id} className="relative group/img">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={img.url}
+                    alt={`Foto ${i + 1}`}
+                    className="h-24 w-24 rounded-lg object-cover border border-border"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleExistingImageDelete(img.id)}
+                    className="absolute -top-1.5 -right-1.5 hidden group-hover/img:flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow"
+                    title="Eliminar imagen"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                  {i === 0 && (
+                    <span className="absolute bottom-1 left-1 rounded text-[9px] font-semibold bg-black/60 text-white px-1 leading-4">
+                      Principal
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Nuevas imágenes seleccionadas */}
+        {productPreviews.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Nuevas fotos a subir{existingImages.length > 0 ? ' (reemplazarán las actuales al guardar)' : ''}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {productPreviews.map((url, i) => (
+                <div key={i} className="relative group/img">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt={`Nueva foto ${i + 1}`}
+                    className="h-24 w-24 rounded-lg object-cover border border-border"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleProductImageRemove(i)}
+                    className="absolute -top-1.5 -right-1.5 hidden group-hover/img:flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow"
+                    title="Quitar foto"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                  {i === 0 && (
+                    <span className="absolute bottom-1 left-1 rounded text-[9px] font-semibold bg-black/60 text-white px-1 leading-4">
+                      Principal
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Drop zone */}
         <label
@@ -719,38 +793,6 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
 
         {imageError && (
           <p className="text-xs text-destructive">Agregá al menos una imagen del producto</p>
-        )}
-
-        {/* Previews */}
-        {imagePreviews.length > 0 && (
-          <div className="flex flex-wrap gap-3">
-            {imagePreviews.map((url, i) => (
-              <div key={i} className="relative group/img">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={url}
-                  alt={`Foto ${i + 1}`}
-                  className="h-24 w-24 rounded-lg object-cover border border-border"
-                />
-                {/* Solo permití eliminar imágenes nuevas (no las existentes) */}
-                {!showingExisting && (
-                  <button
-                    type="button"
-                    onClick={() => handleProductImageRemove(i)}
-                    className="absolute -top-1.5 -right-1.5 hidden group-hover/img:flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow"
-                    title="Quitar foto"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-                {i === 0 && (
-                  <span className="absolute bottom-1 left-1 rounded text-[9px] font-semibold bg-black/60 text-white px-1 leading-4">
-                    Principal
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
         )}
       </section>
 

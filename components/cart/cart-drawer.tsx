@@ -57,7 +57,11 @@ export function CartDrawer() {
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -20 }}
-                      className="mb-4 flex gap-4 border-b border-border pb-4 last:border-0"
+                      className={`mb-4 flex gap-4 border-b border-border pb-4 last:border-0 ${
+                        !item.product.is_made_to_order && (item.variant?.stock ?? 1) <= 0
+                          ? 'opacity-75'
+                          : ''
+                      }`}
                     >
                       {/* Product Image */}
                       <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-md bg-secondary">
@@ -80,8 +84,18 @@ export function CartDrawer() {
                             </h4>
                             {item.variant && (
                               <p className="text-sm text-muted-foreground">
-                                Talle: {item.variant.label}
+                                {item.variant.label}
                               </p>
+                            )}
+                            {!item.product.is_made_to_order && (item.variant?.stock ?? 1) <= 0 && (
+                              <span className="text-[10px] font-medium text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+                                Sin stock · consulta
+                              </span>
+                            )}
+                            {item.product.is_made_to_order && (
+                              <span className="text-[10px] font-medium text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">
+                                A pedido
+                              </span>
                             )}
                           </div>
                           <button
