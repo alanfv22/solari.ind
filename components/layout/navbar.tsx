@@ -72,13 +72,13 @@ export function Navbar() {
                   </span>
                 </div>
               </Link>
-              <nav className="flex flex-col gap-4">
+              <nav className="flex flex-col gap-6 px-6">
                 {navLinks.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="text-lg font-medium text-foreground transition-colors hover:text-muted-foreground"
+                    className="text-lg font-medium text-foreground transition-colors hover:text-muted-foreground py-2"
                   >
                     {link.label}
                   </Link>

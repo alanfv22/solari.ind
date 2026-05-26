@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { SlidersHorizontal, X } from 'lucide-react'
 import { Navbar } from '@/components/layout/navbar'
@@ -20,6 +21,7 @@ type GenderFilter = 'todo' | 'mujer' | 'hombre'
 type SortOption = 'featured' | 'price-asc' | 'price-desc' | 'newest'
 
 export default function CatalogoPage() {
+  const searchParams = useSearchParams()
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -33,9 +35,19 @@ export default function CatalogoPage() {
     Promise.all([fetchProducts(), fetchCategories()]).then(([prods, cats]) => {
       setAllProducts(prods)
       setCategories(cats)
+
+      // Leer parámetro categoria de la URL y aplicar filtro
+      const categoriaParam = searchParams.get('categoria')
+      if (categoriaParam) {
+        const category = cats.find((c) => c.slug === categoriaParam)
+        if (category) {
+          setSelectedCategory(category.id)
+        }
+      }
+
       setIsLoading(false)
     })
-  }, [])
+  }, [searchParams])
 
   const filteredProducts = useMemo(() => {
     let filtered = [...allProducts]

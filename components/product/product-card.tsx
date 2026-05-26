@@ -152,7 +152,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           </h3>
 
           {/* Price */}
-          <div className="flex flex-col gap-0.5 pt-1">
+          <div className="flex flex-col gap-1 pt-1">
             {/* Precio lista tachado + badge de descuento (solo si hay oferta) */}
             {precioOferta !== null ? (
               <div className="flex items-baseline gap-1.5">
@@ -176,8 +176,8 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                 {formatPrice(precioOferta)}
               </span>
             )}
-            {/* Precio transferencia (siempre resaltado) */}
-            <div className="flex items-baseline gap-1.5">
+            {/* Precio transferencia (siempre resaltado, en nueva línea) */}
+            <div className="flex flex-col gap-0.5">
               <span className="text-base font-bold text-emerald-700">
                 {formatPrice(precioOfertaTransferencia ?? precioTransferencia)}
               </span>
