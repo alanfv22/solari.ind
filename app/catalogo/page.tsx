@@ -16,11 +16,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { fetchProducts, fetchCategories } from '@/lib/data'
 import { cn } from '@/lib/utils'
 import type { Product, Category } from '@/lib/types'
+import { Suspense } from 'react'
 
 type GenderFilter = 'todo' | 'mujer' | 'hombre'
 type SortOption = 'featured' | 'price-asc' | 'price-desc' | 'newest'
 
-export default function CatalogoPage() {
+function CatalogoContent() {
   const searchParams = useSearchParams()
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -323,5 +324,13 @@ export default function CatalogoPage() {
       <CartDrawer />
       <WhatsAppFab />
     </>
+  )
+}
+
+export default function CatalogoPage() {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <CatalogoContent />
+    </Suspense>
   )
 }
