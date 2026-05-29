@@ -4,6 +4,7 @@ Importador + Sincronizador de imágenes — Solari.ind
 1. Lee todas las hojas del Google Sheet (una por categoría)
 2. Importa productos nuevos a Supabase (skip si ya existen)
 3. Sincroniza imágenes desde Drive para TODOS los productos sin fotos
+4. Al final muestra productos sin precio y sin imagen
 
 Estructura Drive: Solari.ind/ → <Categoría>/ → <Nombre Producto>/ → imágenes
 """
@@ -53,6 +54,43 @@ def slugify(text: str) -> str:
     text = re.sub(r"[^a-z0-9\s-]", "", text)
     text = re.sub(r"[\s]+", "-", text)
     return text.strip("-")
+
+# ─── Compresión de imágenes ───────────────────────────────────────────────────
+
+def compress_image(content: bytes, max_size_kb: int = 300, max_width: int = 1200) -> tuple[bytes, str]:
+    """
+    Comprime una imagen manteniendo buena calidad visual.
+    - Redimensiona si el ancho supera max_width
+    - Comprime hasta max_size_kb KB
+    - Devuelve (bytes_comprimidos, mime_type)
+    """
+    from PIL import Image
+    import io as _io
+
+    img = Image.open(_io.BytesIO(content))
+
+    # Convertir a RGB si tiene canal alpha (PNG con transparencia)
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+
+    # Redimensionar si es muy ancha
+    if img.width > max_width:
+        ratio = max_width / img.width
+        new_height = int(img.height * ratio)
+        img = img.resize((max_width, new_height), Image.LANCZOS)
+
+    # Comprimir ajustando calidad
+    quality = 85
+    while quality >= 40:
+        buf = _io.BytesIO()
+        img.save(buf, format="JPEG", quality=quality, optimize=True)
+        size_kb = buf.tell() / 1024
+        if size_kb <= max_size_kb:
+            break
+        quality -= 10
+
+    buf.seek(0)
+    return buf.read(), "image/jpeg"
 
 # ─── Entorno ──────────────────────────────────────────────────────────────────
 
@@ -171,7 +209,7 @@ def download_file(drive_service, file_id: str) -> bytes:
     return buf.getvalue()
 
 def upload_images_for_product(db, drive_service, product_id, product_name, slug, cat_drive_folder_id, product_folders_cache, cat_key):
-    """Busca y sube imágenes para un producto. Devuelve cantidad subida."""
+    """Busca, comprime y sube imágenes para un producto. Devuelve cantidad subida."""
     if cat_key not in product_folders_cache:
         product_folders_cache[cat_key] = list_subfolders(drive_service, cat_drive_folder_id)
     product_folders = product_folders_cache[cat_key]
@@ -188,11 +226,14 @@ def upload_images_for_product(db, drive_service, product_id, product_name, slug,
 
     uploaded = 0
     for sort_order, img_file in enumerate(images):
-        file_name    = img_file["name"]
-        mime_type    = img_file.get("mimeType", "image/jpeg")
-        storage_path = f"{STORE_ID}/{slug}/{file_name}"
+        file_name = img_file["name"]
         try:
-            content    = download_file(drive_service, img_file["id"])
+            content = download_file(drive_service, img_file["id"])
+
+            # Comprimir imagen antes de subir
+            content, mime_type = compress_image(content)
+            storage_path = f"{STORE_ID}/{slug}/{file_name.rsplit('.', 1)[0]}.jpg"
+
             public_url = db.upload_storage(storage_path, content, mime_type)
             db.insert("product_images", {
                 "product_id": product_id,
@@ -200,7 +241,8 @@ def upload_images_for_product(db, drive_service, product_id, product_name, slug,
                 "is_primary": sort_order == 0,
                 "sort_order": sort_order,
             })
-            print(f"    [OK] Imagen: {file_name}" + (" (principal)" if sort_order == 0 else ""))
+            size_kb = len(content) / 1024
+            print(f"    [OK] Imagen: {file_name} → {size_kb:.0f}KB" + (" (principal)" if sort_order == 0 else ""))
             uploaded += 1
         except Exception as e:
             print(f"    [WARN] Error subiendo '{file_name}': {e}")
@@ -287,11 +329,14 @@ def main():
                     "niño": "unisex", "nino": "unisex",
                     "m": "mujer", "h": "hombre", "u": "unisex",
                 }
-                gender      = gender_map.get(normalize(gender_raw), "unisex")
-                description = str(first.get("descripcion", "")).strip() or product_name
+                gender           = gender_map.get(normalize(gender_raw), "unisex")
+                description      = str(first.get("descripcion", "")).strip() or product_name
                 is_made_to_order = str(first.get("a_pedido", "")).strip().lower() in (
                     "si", "sí", "yes", "1", "true"
                 )
+
+                if base_price == 0.0:
+                    print(f"    [WARN] Sin precio — se importa igual pero revisar.")
 
                 product = db.insert("products", {
                     "store_id":                  STORE_ID,
@@ -386,14 +431,46 @@ def main():
         else:
             missing += 1
 
-    # ── Resumen ───────────────────────────────────────────────────────────────
+    # ── PASO 3: Reporte de productos sin precio y sin imagen ──────────────────
+    print("\n" + "=" * 55)
+    print("PASO 3 — Revisión de productos incompletos")
+    print("=" * 55 + "\n")
+
+    all_products_check = db.select("products", {"store_id": f"eq.{STORE_ID}", "active": "eq.true"})
+    all_images_check   = db.select("product_images", {"select": "product_id"})
+    products_with_images_check = {img["product_id"] for img in all_images_check}
+
+    sin_precio  = [p for p in all_products_check if not p.get("base_price") or float(p["base_price"]) == 0]
+    sin_imagen  = [p for p in all_products_check if p["id"] not in products_with_images_check]
+
+    if sin_precio:
+        print(f"⚠️  PRODUCTOS SIN PRECIO ({len(sin_precio)}):")
+        for p in sin_precio:
+            cat_name = categories_by_id.get(p.get("category_id"), "sin categoría")
+            print(f"   - {p['name']}  [{cat_name}]")
+    else:
+        print("✓ Todos los productos tienen precio.")
+
+    print()
+
+    if sin_imagen:
+        print(f"⚠️  PRODUCTOS SIN IMAGEN ({len(sin_imagen)}):")
+        for p in sin_imagen:
+            cat_name = categories_by_id.get(p.get("category_id"), "sin categoría")
+            print(f"   - {p['name']}  [{cat_name}]")
+    else:
+        print("✓ Todos los productos tienen imagen.")
+
+    # ── Resumen final ─────────────────────────────────────────────────────────
     print("\n" + "=" * 55)
     print("RESUMEN FINAL")
-    print(f"  [Paso 1] Importados : {imported}")
-    print(f"  [Paso 1] Skipeados  : {skipped}")
-    print(f"  [Paso 1] Fallidos   : {failed}")
+    print(f"  [Paso 1] Importados             : {imported}")
+    print(f"  [Paso 1] Skipeados              : {skipped}")
+    print(f"  [Paso 1] Fallidos               : {failed}")
     print(f"  [Paso 2] Imágenes sincronizadas : {synced}")
     print(f"  [Paso 2] Sin foto en Drive      : {missing}")
+    print(f"  [Paso 3] Sin precio             : {len(sin_precio)}")
+    print(f"  [Paso 3] Sin imagen             : {len(sin_imagen)}")
     print("=" * 55)
 
 
