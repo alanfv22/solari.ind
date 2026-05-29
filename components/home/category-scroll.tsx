@@ -54,9 +54,9 @@ export function CategoryScroll() {
                     className="group relative block w-40 overflow-hidden sm:w-48 lg:w-56"
                   >
                     <div className="relative aspect-[3/4] w-full overflow-hidden bg-secondary">
-                      {category.image_url && (
+                      {(category.icon_url ?? category.image_url) && (
                         <Image
-                          src={category.image_url}
+                          src={(category.icon_url ?? category.image_url)!}
                           alt={category.name}
                           fill
                           className="object-cover transition-transform duration-700 group-hover:scale-105"
