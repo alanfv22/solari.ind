@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Package, DollarSign, BarChart3, ShoppingCart } from 'lucide-react'
+import { Package, BarChart3, ShoppingCart } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatPrice } from '@/lib/data'
@@ -74,28 +74,18 @@ export default function DashboardPage() {
   const stats = [
     {
       label: 'Total productos',
-      value: data?.totalProducts ?? 0,
       display: String(data?.totalProducts ?? 0),
       icon: Package,
       color: 'text-blue-500',
     },
     {
-      label: 'Valor catálogo',
-      value: data?.valorCatalogo ?? 0,
-      display: formatPrice(data?.valorCatalogo ?? 0),
-      icon: DollarSign,
-      color: 'text-green-500',
-    },
-    {
       label: 'Valor inventario',
-      value: data?.valorInventario ?? 0,
       display: formatPrice(data?.valorInventario ?? 0),
       icon: BarChart3,
       color: 'text-purple-500',
     },
     {
       label: 'Total ventas',
-      value: data?.totalVentas ?? 0,
       display: formatPrice(data?.totalVentas ?? 0),
       icon: ShoppingCart,
       color: 'text-orange-500',
@@ -110,7 +100,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
@@ -190,8 +180,8 @@ function DashboardSkeleton() {
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-4 w-64" />
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[...Array(4)].map((_, i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[...Array(3)].map((_, i) => (
           <Card key={i}>
             <CardHeader className="pb-2">
               <Skeleton className="h-4 w-24" />
