@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\Alan Veron\\\\Desktop\\\\Proyectos Generales\\\\Solari.ind\\\\app\\\\api\\\\admin\\\\orders\")",
+      "Bash(Out-Null)",
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\Alan Veron\\\\Desktop\\\\Proyectos Generales\\\\Solari.ind\\\\app\\\\api\\\\admin\\\\orders\\\\[id]\")",
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\Alan Veron\\\\Desktop\\\\Proyectos Generales\\\\Solari.ind\\\\app\\\\admin\\\\\\(protected\\)\\\\pedidos\")",
+      "Bash(Write-Output \"Directories created\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\Alan Veron\\\\Desktop\\\\Proyectos Generales\\\\Solari.ind\\\\app\\\\api\\\\orders\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Alan Veron\\Desktop\\Proyectos Generales\\Solari.ind\\app\\api\\admin\\orders"
+    ]
+  }
+}

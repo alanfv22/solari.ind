@@ -21,12 +21,20 @@ function firstAvailableVariant(variants: ProductVariant[] | undefined): ProductV
   return variants.find((v) => v.type === 'size' && v.stock > 0) ?? variants[0] ?? null
 }
 
+// Gray 1×1 JPEG placeholder para blur
+const BLUR_PLACEHOLDER =
+  'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k='
+
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     firstAvailableVariant(product.variants)
   )
   const [isHovered, setIsHovered] = useState(false)
+  const [img1Loaded, setImg1Loaded] = useState(false)
+  const [img2Loaded, setImg2Loaded] = useState(false)
   const { addItem, cashDiscountPercent } = useCartStore()
+
+  const isPriority = index < 4
 
   const basePrice = selectedVariant?.price_override ?? product.base_price
   const { precioLista, precioTransferencia, precioOferta, precioOfertaTransferencia } =
@@ -67,12 +75,21 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
       <Link href={`/producto/${product.slug}`} className="flex flex-col">
         {/* Image Container */}
         <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-slate-100">
+          {/* Skeleton pulse mientras carga la imagen principal */}
+          {!img1Loaded && (
+            <div className="absolute inset-0 animate-pulse bg-slate-200" />
+          )}
           {product.images?.[0]?.url && (
             <Image
               src={product.images[0].url}
               alt={product.name}
               fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+              sizes="(max-width: 768px) 50vw, 25vw"
+              priority={isPriority}
+              loading={isPriority ? undefined : 'lazy'}
+              placeholder="blur"
+              blurDataURL={BLUR_PLACEHOLDER}
+              onLoad={() => setImg1Loaded(true)}
               className={cn(
                 'object-cover transition-all duration-500',
                 isHovered && 'scale-105'
@@ -85,10 +102,14 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               src={product.images[1].url}
               alt={`${product.name} - vista alternativa`}
               fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+              sizes="(max-width: 768px) 50vw, 25vw"
+              loading="lazy"
+              placeholder="blur"
+              blurDataURL={BLUR_PLACEHOLDER}
+              onLoad={() => setImg2Loaded(true)}
               className={cn(
                 'absolute inset-0 object-cover transition-opacity duration-500',
-                isHovered ? 'opacity-100' : 'opacity-0'
+                isHovered && img2Loaded ? 'opacity-100' : 'opacity-0'
               )}
             />
           )}

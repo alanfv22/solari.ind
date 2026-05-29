@@ -25,12 +25,16 @@ export default function HomePage() {
     })
   }, [])
 
-  const products =
+  const filteredProducts =
     selectedGender === 'todo'
       ? allProducts
       : allProducts.filter(
           (p) => p.gender === selectedGender || p.gender === 'unisex'
         )
+
+  const products = [...filteredProducts]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 10)
 
   return (
     <>
@@ -43,9 +47,10 @@ export default function HomePage() {
           <CategoryScroll />
           <ProductGrid
             products={products}
-            title="Productos destacados"
+            title="Últimas novedades"
             isLoading={isLoading}
             skeletonCount={8}
+            viewAllHref="/catalogo"
           />
         </div>
       </main>

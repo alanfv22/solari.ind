@@ -1,6 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { ArrowRight } from 'lucide-react'
 import { ProductCard } from '@/components/product/product-card'
 import { ProductCardSkeleton } from '@/components/product/product-card-skeleton'
 import type { Product } from '@/lib/types'
@@ -10,21 +12,39 @@ interface ProductGridProps {
   title?: string
   isLoading?: boolean
   skeletonCount?: number
+  viewAllHref?: string
 }
 
-export function ProductGrid({ products, title, isLoading = false, skeletonCount = 8 }: ProductGridProps) {
+export function ProductGrid({ products, title, isLoading = false, skeletonCount = 8, viewAllHref }: ProductGridProps) {
   return (
     <section className="bg-slate-50 py-16 lg:py-24">
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         {title && (
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="mb-10 font-serif text-2xl font-medium text-foreground sm:text-3xl lg:mb-12"
-          >
-            {title}
-          </motion.h2>
+          <div className="mb-10 flex items-center justify-between lg:mb-12">
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="font-serif text-2xl font-medium text-foreground sm:text-3xl"
+            >
+              {title}
+            </motion.h2>
+            {viewAllHref && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <Link
+                  href={viewAllHref}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                >
+                  Ver todo el catálogo
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </motion.div>
+            )}
+          </div>
         )}
 
         {isLoading ? (

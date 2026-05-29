@@ -31,6 +31,9 @@ function CatalogoContent() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<SortOption>('featured')
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const PAGE_SIZE = 12
 
   useEffect(() => {
     Promise.all([fetchProducts(), fetchCategories()]).then(([prods, cats]) => {
@@ -49,6 +52,9 @@ function CatalogoContent() {
       setIsLoading(false)
     })
   }, [searchParams])
+
+  // Resetear página al cambiar filtros
+  useEffect(() => { setCurrentPage(1) }, [selectedGender, selectedCategory, sortBy])
 
   const filteredProducts = useMemo(() => {
     let filtered = [...allProducts]
@@ -82,6 +88,17 @@ function CatalogoContent() {
 
     return filtered
   }, [allProducts, selectedGender, selectedCategory, sortBy])
+
+  const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE)
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  )
+
+  function goToPage(page: number) {
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const activeFiltersCount = [
     selectedGender !== 'todo',
@@ -312,11 +329,35 @@ function CatalogoContent() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4 lg:gap-8">
-              {filteredProducts.map((product, index) => (
-                <ProductCard key={product.id} product={product} index={index} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4 lg:gap-8">
+                {paginatedProducts.map((product, index) => (
+                  <ProductCard key={product.id} product={product} index={index} />
+                ))}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="mt-12 flex items-center justify-center gap-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>

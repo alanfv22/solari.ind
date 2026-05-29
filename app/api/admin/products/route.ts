@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
   const { data: product, error } = await db
     .from('products')
-    .insert({ ...productData, store_id: STORE_ID, sort_order })
+    .insert({ ...productData, store_id: STORE_ID, sort_order, created_at: new Date().toISOString() })
     .select()
     .single()
 

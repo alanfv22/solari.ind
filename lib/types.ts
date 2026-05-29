@@ -66,6 +66,54 @@ export interface Product {
   images?: ProductImage[]
 }
 
+export type OrderStatus =
+  | 'pendiente'
+  | 'confirmado'
+  | 'en_preparacion'
+  | 'enviado'
+  | 'entregado'
+  | 'cancelado'
+
+export interface OrderItem {
+  id: string
+  order_id: string
+  product_id: string
+  variant_id: string | null
+  product_name: string
+  variant_label: string | null
+  unit_price: number
+  quantity: number
+  subtotal: number
+  // Joined data
+  product?: {
+    is_made_to_order: boolean
+    images?: { url: string; is_primary: boolean }[]
+  }
+  variant?: {
+    stock: number
+  } | null
+}
+
+export interface Order {
+  id: string
+  store_id: string
+  order_number: number
+  created_at: string
+  customer_name: string
+  customer_phone: string | null
+  customer_email: string | null
+  subtotal: number
+  discount_amount: number
+  total: number
+  payment_method: string | null
+  status: OrderStatus
+  notes: string | null
+  has_made_to_order: boolean
+  has_out_of_stock: boolean
+  // Joined data
+  items?: OrderItem[]
+}
+
 export interface CartItem {
   product: Product
   variant: ProductVariant | null
