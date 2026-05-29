@@ -66,9 +66,14 @@ function CatalogoContent() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
+  useEffect(() => {
+    if (!isLoading) {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+    }
+  }, [currentPage, isLoading])
+
   function goToPage(page: number) {
     setCurrentPage(page)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function handleGenderChange(gender: GenderFilter) {
