@@ -165,11 +165,13 @@ function CatalogoContent() {
                     )}
                   </Button>
                 </SheetTrigger>
-                <SheetContent className="bg-background">
-                  <SheetHeader>
+                <SheetContent className="bg-background flex flex-col">
+                  <SheetHeader className="shrink-0">
                     <SheetTitle className="text-foreground">Filtros</SheetTitle>
                   </SheetHeader>
-                  <div className="mt-6 flex flex-col gap-6">
+
+                  {/* Scrollable content */}
+                  <div className="mt-6 flex-1 overflow-y-auto flex flex-col gap-6 pb-2">
                     {/* Gender - Mobile */}
                     <div className="flex flex-col gap-3 sm:hidden">
                       <span className="text-sm font-medium text-foreground">Género</span>
@@ -191,36 +193,21 @@ function CatalogoContent() {
                       </div>
                     </div>
 
-                    {/* Categories */}
-                    <div className="flex flex-col gap-3">
+                    {/* Categories — select desplegable */}
+                    <div className="flex flex-col gap-2">
                       <span className="text-sm font-medium text-foreground">Categoría</span>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => handleCategoryChange(null)}
-                          className={cn(
-                            'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                            selectedCategory === null
-                              ? 'border-primary bg-primary text-primary-foreground'
-                              : 'border-border bg-background text-foreground hover:border-primary'
-                          )}
-                        >
-                          Todas
-                        </button>
+                      <select
+                        value={selectedCategory ?? ''}
+                        onChange={(e) => handleCategoryChange(e.target.value || null)}
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      >
+                        <option value="">Todas las categorías</option>
                         {categories.map((cat) => (
-                          <button
-                            key={cat.id}
-                            onClick={() => handleCategoryChange(cat.id)}
-                            className={cn(
-                              'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                              selectedCategory === cat.id
-                                ? 'border-primary bg-primary text-primary-foreground'
-                                : 'border-border bg-background text-foreground hover:border-primary'
-                            )}
-                          >
+                          <option key={cat.id} value={cat.id}>
                             {cat.name}
-                          </button>
+                          </option>
                         ))}
-                      </div>
+                      </select>
                     </div>
 
                     {/* Sort */}
@@ -228,7 +215,6 @@ function CatalogoContent() {
                       <span className="text-sm font-medium text-foreground">Ordenar por</span>
                       <div className="flex flex-wrap gap-2">
                         {[
-                          { value: 'featured' as const, label: 'Destacados' },
                           { value: 'price-asc' as const, label: 'Menor precio' },
                           { value: 'price-desc' as const, label: 'Mayor precio' },
                           { value: 'newest' as const, label: 'Más nuevos' },
@@ -248,12 +234,18 @@ function CatalogoContent() {
                         ))}
                       </div>
                     </div>
+                  </div>
 
-                    {activeFiltersCount > 0 && (
-                      <Button variant="outline" onClick={clearFilters}>
-                        Limpiar filtros
-                      </Button>
-                    )}
+                  {/* Sticky footer — siempre visible */}
+                  <div className="shrink-0 border-t border-border bg-background pt-4 pb-2">
+                    <Button
+                      variant="outline"
+                      onClick={clearFilters}
+                      disabled={activeFiltersCount === 0}
+                      className="w-full"
+                    >
+                      Limpiar filtros
+                    </Button>
                   </div>
                 </SheetContent>
               </Sheet>

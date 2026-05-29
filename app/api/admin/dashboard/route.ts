@@ -10,29 +10,56 @@ export async function GET(request: Request) {
 
   const [
     { count: totalProducts },
-    { count: activeProducts },
-    { count: totalCategories },
-    { data: recentProducts },
+    { data: productsData },
+    { data: orderTotals },
+    { data: lastOrders },
   ] = await Promise.all([
-    db.from('products').select('id', { count: 'exact', head: true }).eq('store_id', STORE_ID),
     db
       .from('products')
       .select('id', { count: 'exact', head: true })
       .eq('store_id', STORE_ID)
       .eq('active', true),
-    db.from('categories').select('id', { count: 'exact', head: true }).eq('store_id', STORE_ID),
     db
       .from('products')
-      .select('id, name, base_price, active, gender, created_at, category:categories(name)')
+      .select('base_price, variants:product_variants(stock)')
+      .eq('store_id', STORE_ID)
+      .eq('active', true),
+    db
+      .from('orders')
+      .select('total')
+      .eq('store_id', STORE_ID)
+      .neq('status', 'cancelado'),
+    db
+      .from('orders')
+      .select('order_number, customer_name, total, status, created_at')
       .eq('store_id', STORE_ID)
       .order('created_at', { ascending: false })
       .limit(5),
   ])
 
+  const valorCatalogo = (productsData ?? []).reduce(
+    (sum, p) => sum + (p.base_price ?? 0),
+    0
+  )
+
+  const valorInventario = (productsData ?? []).reduce((sum, p) => {
+    const totalStock = ((p.variants as { stock: number }[]) ?? []).reduce(
+      (s, v) => s + (v.stock ?? 0),
+      0
+    )
+    return sum + (p.base_price ?? 0) * totalStock
+  }, 0)
+
+  const totalVentas = (orderTotals ?? []).reduce(
+    (sum, o) => sum + (o.total ?? 0),
+    0
+  )
+
   return Response.json({
     totalProducts: totalProducts ?? 0,
-    activeProducts: activeProducts ?? 0,
-    totalCategories: totalCategories ?? 0,
-    recentProducts: recentProducts ?? [],
+    valorCatalogo,
+    valorInventario,
+    totalVentas,
+    lastOrders: lastOrders ?? [],
   })
 }
