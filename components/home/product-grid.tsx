@@ -20,31 +20,14 @@ export function ProductGrid({ products, title, isLoading = false, skeletonCount 
     <section className="bg-slate-50 py-16 lg:py-24">
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         {title && (
-          <div className="mb-10 flex items-center justify-between lg:mb-12">
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="font-serif text-2xl font-medium text-foreground sm:text-3xl"
-            >
-              {title}
-            </motion.h2>
-            {viewAllHref && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-              >
-                <Link
-                  href={viewAllHref}
-                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-                >
-                  Ver todo el catálogo
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </motion.div>
-            )}
-          </div>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mb-10 font-serif text-2xl font-medium text-foreground sm:text-3xl lg:mb-12"
+          >
+            {title}
+          </motion.h2>
         )}
 
         {isLoading ? (
@@ -63,6 +46,23 @@ export function ProductGrid({ products, title, isLoading = false, skeletonCount 
               <ProductCard key={product.id} product={product} index={index} />
             ))}
           </div>
+        )}
+
+        {viewAllHref && !isLoading && products.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-10 flex justify-center lg:mt-12"
+          >
+            <Link
+              href={viewAllHref}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+            >
+              Ver todo el catálogo
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </motion.div>
         )}
       </div>
     </section>

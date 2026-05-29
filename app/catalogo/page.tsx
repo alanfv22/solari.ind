@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { SlidersHorizontal, X } from 'lucide-react'
@@ -13,7 +13,7 @@ import { ProductCardSkeleton } from '@/components/product/product-card-skeleton'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { fetchProducts, fetchCategories } from '@/lib/data'
+import { fetchProductsPaginated, fetchCategories } from '@/lib/data'
 import { cn } from '@/lib/utils'
 import type { Product, Category } from '@/lib/types'
 import { Suspense } from 'react'
@@ -23,7 +23,8 @@ type SortOption = 'featured' | 'price-asc' | 'price-desc' | 'newest'
 
 function CatalogoContent() {
   const searchParams = useSearchParams()
-  const [allProducts, setAllProducts] = useState<Product[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [total, setTotal] = useState(0)
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -35,69 +36,54 @@ function CatalogoContent() {
 
   const PAGE_SIZE = 12
 
+  // Cargar categorías una vez y resolver parámetro de URL
   useEffect(() => {
-    Promise.all([fetchProducts(), fetchCategories()]).then(([prods, cats]) => {
-      setAllProducts(prods)
+    fetchCategories().then((cats) => {
       setCategories(cats)
-
-      // Leer parámetro categoria de la URL y aplicar filtro
       const categoriaParam = searchParams.get('categoria')
       if (categoriaParam) {
-        const category = cats.find((c) => c.slug === categoriaParam)
-        if (category) {
-          setSelectedCategory(category.id)
-        }
+        const match = cats.find((c: Category) => c.slug === categoriaParam)
+        if (match) setSelectedCategory(match.id)
       }
-
-      setIsLoading(false)
     })
   }, [searchParams])
 
-  // Resetear página al cambiar filtros
-  useEffect(() => { setCurrentPage(1) }, [selectedGender, selectedCategory, sortBy])
+  // Fetch server-side al cambiar filtros o página
+  useEffect(() => {
+    setIsLoading(true)
+    fetchProductsPaginated({
+      gender: selectedGender !== 'todo' ? selectedGender : undefined,
+      categoryId: selectedCategory ?? undefined,
+      sortBy,
+      page: currentPage,
+      pageSize: PAGE_SIZE,
+    }).then(({ products: data, total: count }) => {
+      setProducts(data)
+      setTotal(count)
+      setIsLoading(false)
+    })
+  }, [selectedGender, selectedCategory, sortBy, currentPage])
 
-  const filteredProducts = useMemo(() => {
-    let filtered = [...allProducts]
-
-    if (selectedGender !== 'todo') {
-      filtered = filtered.filter(
-        (p) => p.gender === selectedGender || p.gender === 'unisex'
-      )
-    }
-
-    if (selectedCategory) {
-      filtered = filtered.filter((p) => p.category_id === selectedCategory)
-    }
-
-    switch (sortBy) {
-      case 'price-asc':
-        filtered.sort((a, b) => a.base_price - b.base_price)
-        break
-      case 'price-desc':
-        filtered.sort((a, b) => b.base_price - a.base_price)
-        break
-      case 'newest':
-        filtered.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )
-        break
-      default:
-        filtered.sort((a, b) => a.sort_order - b.sort_order)
-    }
-
-    return filtered
-  }, [allProducts, selectedGender, selectedCategory, sortBy])
-
-  const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE)
-  const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  )
+  const totalPages = Math.ceil(total / PAGE_SIZE)
 
   function goToPage(page: number) {
     setCurrentPage(page)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function handleGenderChange(gender: GenderFilter) {
+    setSelectedGender(gender)
+    setCurrentPage(1)
+  }
+
+  function handleCategoryChange(categoryId: string | null) {
+    setSelectedCategory(categoryId)
+    setCurrentPage(1)
+  }
+
+  function handleSortChange(sort: SortOption) {
+    setSortBy(sort)
+    setCurrentPage(1)
   }
 
   const activeFiltersCount = [
@@ -108,6 +94,7 @@ function CatalogoContent() {
   const clearFilters = () => {
     setSelectedGender('todo')
     setSelectedCategory(null)
+    setCurrentPage(1)
   }
 
   return (
@@ -138,7 +125,7 @@ function CatalogoContent() {
                 {(['todo', 'mujer', 'hombre'] as const).map((gender) => (
                   <button
                     key={gender}
-                    onClick={() => setSelectedGender(gender)}
+                    onClick={() => handleGenderChange(gender)}
                     className={cn(
                       'relative rounded-full px-4 py-2 text-sm font-medium transition-colors',
                       selectedGender === gender
@@ -185,7 +172,7 @@ function CatalogoContent() {
                         {(['todo', 'mujer', 'hombre'] as const).map((gender) => (
                           <button
                             key={gender}
-                            onClick={() => setSelectedGender(gender)}
+                            onClick={() => handleGenderChange(gender)}
                             className={cn(
                               'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
                               selectedGender === gender
@@ -204,7 +191,7 @@ function CatalogoContent() {
                       <span className="text-sm font-medium text-foreground">Categoría</span>
                       <div className="flex flex-wrap gap-2">
                         <button
-                          onClick={() => setSelectedCategory(null)}
+                          onClick={() => handleCategoryChange(null)}
                           className={cn(
                             'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
                             selectedCategory === null
@@ -217,7 +204,7 @@ function CatalogoContent() {
                         {categories.map((cat) => (
                           <button
                             key={cat.id}
-                            onClick={() => setSelectedCategory(cat.id)}
+                            onClick={() => handleCategoryChange(cat.id)}
                             className={cn(
                               'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
                               selectedCategory === cat.id
@@ -243,7 +230,7 @@ function CatalogoContent() {
                         ].map((option) => (
                           <button
                             key={option.value}
-                            onClick={() => setSortBy(option.value)}
+                            onClick={() => handleSortChange(option.value)}
                             className={cn(
                               'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
                               sortBy === option.value
@@ -269,7 +256,7 @@ function CatalogoContent() {
               {/* Results Count */}
               {!isLoading && (
                 <span className="text-sm text-muted-foreground">
-                  {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''}
+                  {total} producto{total !== 1 ? 's' : ''}
                 </span>
               )}
             </div>
@@ -285,7 +272,7 @@ function CatalogoContent() {
                 <Badge
                   variant="secondary"
                   className="cursor-pointer gap-1 capitalize hover:bg-secondary/80"
-                  onClick={() => setSelectedGender('todo')}
+                  onClick={() => handleGenderChange('todo')}
                 >
                   {selectedGender === 'mujer' ? 'Mujer' : 'Hombre'}
                   <X className="h-3 w-3" />
@@ -295,7 +282,7 @@ function CatalogoContent() {
                 <Badge
                   variant="secondary"
                   className="cursor-pointer gap-1 hover:bg-secondary/80"
-                  onClick={() => setSelectedCategory(null)}
+                  onClick={() => handleCategoryChange(null)}
                 >
                   {categories.find((c) => c.id === selectedCategory)?.name}
                   <X className="h-3 w-3" />
@@ -319,7 +306,7 @@ function CatalogoContent() {
                 <ProductCardSkeleton key={i} />
               ))}
             </div>
-          ) : filteredProducts.length === 0 ? (
+          ) : total === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
               <p className="text-lg text-muted-foreground">
                 No encontramos productos con estos filtros.
@@ -331,7 +318,7 @@ function CatalogoContent() {
           ) : (
             <>
               <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4 lg:gap-8">
-                {paginatedProducts.map((product, index) => (
+                {products.map((product, index) => (
                   <ProductCard key={product.id} product={product} index={index} />
                 ))}
               </div>

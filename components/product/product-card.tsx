@@ -21,9 +21,6 @@ function firstAvailableVariant(variants: ProductVariant[] | undefined): ProductV
   return variants.find((v) => v.type === 'size' && v.stock > 0) ?? variants[0] ?? null
 }
 
-// Gray 1×1 JPEG placeholder para blur
-const BLUR_PLACEHOLDER =
-  'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k='
 
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
@@ -87,8 +84,6 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               sizes="(max-width: 768px) 50vw, 25vw"
               priority={isPriority}
               loading={isPriority ? undefined : 'lazy'}
-              placeholder="blur"
-              blurDataURL={BLUR_PLACEHOLDER}
               onLoad={() => setImg1Loaded(true)}
               className={cn(
                 'object-cover transition-all duration-500',
@@ -104,8 +99,6 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               fill
               sizes="(max-width: 768px) 50vw, 25vw"
               loading="lazy"
-              placeholder="blur"
-              blurDataURL={BLUR_PLACEHOLDER}
               onLoad={() => setImg2Loaded(true)}
               className={cn(
                 'absolute inset-0 object-cover transition-opacity duration-500',
