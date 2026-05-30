@@ -32,6 +32,7 @@ import type { Category, Product } from '@/lib/types'
 
 const LETTER_SIZES = ['S', 'M', 'L', 'XL', 'XXL']
 const NUMBER_SIZES = ['36', '38', '40', '42', '44', '46']
+const NUMBER_SIZES_2 = ['1', '2', '3', '4', '5', '6']
 
 // ─── Compresión de imagen (cliente) ──────────────────────────────────────────
 
@@ -118,7 +119,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
     basePrice * (1 - percent / 100)
 
   // Generador de variantes
-  const [sizeType, setSizeType] = useState<'letters' | 'numbers'>('letters')
+  const [sizeType, setSizeType] = useState<'letters' | 'numbers' | 'numbers2' | 'unique'>('letters')
   const [selectedSizes, setSelectedSizes] = useState<string[]>([])
   const [colorsInput, setColorsInput] = useState('')
   const [variantsRegenerated, setVariantsRegenerated] = useState(false)
@@ -207,7 +208,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
 
   // ─── Generador de variantes ────────────────────────────────────────────────
 
-  function handleSizeTypeChange(type: 'letters' | 'numbers') {
+  function handleSizeTypeChange(type: 'letters' | 'numbers' | 'numbers2' | 'unique') {
     setSizeType(type)
     setSelectedSizes([])
   }
@@ -219,21 +220,27 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
   }
 
   function handleGenerate() {
-    if (selectedSizes.length === 0) { toast.warning('Seleccioná al menos un talle'); return }
-    if (parsedColors.length === 0) { toast.warning('Ingresá al menos un color'); return }
-
-    const ordered = (sizeType === 'letters' ? LETTER_SIZES : NUMBER_SIZES).filter((s) =>
-      selectedSizes.includes(s)
-    )
-
     type NewVariant = { label: string; price_override: null; stock: number; active: boolean }
     const newVariants: NewVariant[] = []
 
-    ordered.forEach((size) =>
+    if (sizeType === 'unique') {
+      if (parsedColors.length === 0) { toast.warning('Ingresá al menos un color'); return }
       parsedColors.forEach((color) =>
-        newVariants.push({ label: `${size} - ${color}`, price_override: null, stock: 0, active: true })
+        newVariants.push({ label: `Talle Único - ${color}`, price_override: null, stock: 0, active: true })
       )
-    )
+    } else {
+      if (selectedSizes.length === 0) { toast.warning('Seleccioná al menos un talle'); return }
+      if (parsedColors.length === 0) { toast.warning('Ingresá al menos un color'); return }
+
+      const allSizes = sizeType === 'letters' ? LETTER_SIZES : sizeType === 'numbers' ? NUMBER_SIZES : NUMBER_SIZES_2
+      const ordered = allSizes.filter((s) => selectedSizes.includes(s))
+
+      ordered.forEach((size) =>
+        parsedColors.forEach((color) =>
+          newVariants.push({ label: `${size} - ${color}`, price_override: null, stock: 0, active: true })
+        )
+      )
+    }
 
     setVariantsRegenerated(true)
     replace(newVariants)
@@ -532,49 +539,56 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
           Variantes
         </h2>
 
-        {/* Toggle LETRAS / NÚMEROS */}
+        {/* Toggle LETRAS / NÚMEROS / TALLE ÚNICO */}
         <div className="space-y-2">
           <Label className="text-xs text-muted-foreground">Tipo de talle</Label>
-          <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1 gap-1">
-            {(['letters', 'numbers'] as const).map((type) => (
+          <div className="inline-flex flex-wrap rounded-lg border border-border bg-muted/40 p-1 gap-1">
+            {([
+              { value: 'letters', label: 'LETRAS' },
+              { value: 'numbers', label: 'NÚMEROS' },
+              { value: 'numbers2', label: 'NÚMEROS 2' },
+              { value: 'unique', label: 'TALLE ÚNICO' },
+            ] as const).map(({ value, label }) => (
               <button
-                key={type}
+                key={value}
                 type="button"
-                onClick={() => handleSizeTypeChange(type)}
+                onClick={() => handleSizeTypeChange(value)}
                 className={cn(
                   'px-4 py-1.5 rounded-md text-sm font-medium transition-all',
-                  sizeType === type
+                  sizeType === value
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                {type === 'letters' ? 'LETRAS' : 'NÚMEROS'}
+                {label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Pills de talles */}
-        <div className="flex flex-wrap gap-2">
-          {(sizeType === 'letters' ? LETTER_SIZES : NUMBER_SIZES).map((size) => {
-            const active = selectedSizes.includes(size)
-            return (
-              <button
-                key={size}
-                type="button"
-                onClick={() => toggleSize(size)}
-                className={cn(
-                  'h-9 min-w-[44px] px-3 rounded-md text-sm font-medium border transition-all',
-                  active
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background text-foreground border-border hover:border-primary/60 hover:bg-accent'
-                )}
-              >
-                {size}
-              </button>
-            )
-          })}
-        </div>
+        {/* Pills de talles (oculto para Talle Único) */}
+        {sizeType !== 'unique' && (
+          <div className="flex flex-wrap gap-2">
+            {(sizeType === 'letters' ? LETTER_SIZES : sizeType === 'numbers' ? NUMBER_SIZES : NUMBER_SIZES_2).map((size) => {
+              const active = selectedSizes.includes(size)
+              return (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => toggleSize(size)}
+                  className={cn(
+                    'h-9 min-w-[44px] px-3 rounded-md text-sm font-medium border transition-all',
+                    active
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-foreground border-border hover:border-primary/60 hover:bg-accent'
+                  )}
+                >
+                  {size}
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         {/* Colores — siempre visible y requerido */}
         <div className="space-y-1.5">
