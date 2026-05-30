@@ -130,7 +130,7 @@ export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits
     }
 
     const message = generateWhatsAppMessage(opts)
-    const url = `https://wa.me/${whatsappDigits ?? ''}?text=${encodeURIComponent(message)}`
+    const url = `https://wa.me/${whatsappDigits ?? '5491160245653'}?text=${encodeURIComponent(message)}`
     window.open(url, '_blank', 'noopener,noreferrer')
 
     clearCart()

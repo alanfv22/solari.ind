@@ -55,5 +55,5 @@ export async function fetchStoreWhatsAppNumber(): Promise<string | null> {
  * El número real se carga vía StoreContactSync al montar la app.
  */
 export function getFallbackWhatsAppDigits(): string {
-  return ''
+  return '5491160245653'
 }

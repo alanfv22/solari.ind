@@ -16,14 +16,10 @@ export function WhatsAppFab() {
   const { whatsappDigits, loading } = useStoreWhatsApp()
 
   // Construimos la URL manualmente
-  const cleanDigits = normalizeDigits(whatsappDigits)
-  const whatsappUrl = cleanDigits 
-    ? `https://wa.me/${cleanDigits}?text=${encodeURIComponent(GREETING)}`
-    : null
+  const cleanDigits = normalizeDigits(whatsappDigits) ?? '5491160245653'
+  const whatsappUrl = `https://wa.me/${cleanDigits}?text=${encodeURIComponent(GREETING)}`
 
-  // Mientras carga mostramos skeleton; si no hay URL no renderizamos nada
   if (loading) return null
-  if (!whatsappUrl) return null
 
   return (
     <motion.a

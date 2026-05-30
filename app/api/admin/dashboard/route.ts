@@ -28,7 +28,7 @@ export async function GET(request: Request) {
       .from('orders')
       .select('total')
       .eq('store_id', STORE_ID)
-      .neq('status', 'cancelado'),
+      .eq('status', 'entregado'),
     db
       .from('orders')
       .select('order_number, customer_name, total, status, created_at')
