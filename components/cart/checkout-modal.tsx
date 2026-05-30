@@ -21,7 +21,10 @@ import { useCartStore } from '@/lib/cart-store'
 const schema = z
   .object({
     fullName: z.string().min(1, 'Requerido'),
-    phone: z.string().min(6, 'Teléfono inválido'),
+    phone: z.string()
+      .min(1, 'Requerido')
+      .regex(/^\d+$/, 'Solo se permiten números')
+      .min(8, 'Mínimo 8 dígitos'),
     deliveryType: z.enum(['retiro', 'envio']),
     street: z.string().optional(),
     locality: z.string().optional(),
@@ -148,14 +151,14 @@ export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits
           {/* Nombre completo */}
           <div className="space-y-1.5">
             <Label htmlFor="checkout-fullname">Nombre completo *</Label>
-            <Input id="checkout-fullname" {...register('fullName')} placeholder="Ana García" />
+            <Input id="checkout-fullname" {...register('fullName')} />
             {errors.fullName && <p className="text-xs text-destructive">{errors.fullName.message}</p>}
           </div>
 
           {/* Teléfono */}
           <div className="space-y-1.5">
             <Label htmlFor="checkout-phone">Teléfono *</Label>
-            <Input id="checkout-phone" {...register('phone')} placeholder="+54 9 11 1234-5678" type="tel" />
+            <Input id="checkout-phone" {...register('phone')} type="tel" inputMode="numeric" />
             {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
           </div>
 
@@ -187,18 +190,18 @@ export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label htmlFor="checkout-street">Calle y número *</Label>
-                <Input id="checkout-street" {...register('street')} placeholder="Lavalle 2078" />
+                <Input id="checkout-street" {...register('street')} />
                 {errors.street && <p className="text-xs text-destructive">{errors.street.message}</p>}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="checkout-locality">Localidad *</Label>
-                  <Input id="checkout-locality" {...register('locality')} placeholder="Maquinista Savio" />
+                  <Input id="checkout-locality" {...register('locality')} />
                   {errors.locality && <p className="text-xs text-destructive">{errors.locality.message}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="checkout-postal">Código postal</Label>
-                  <Input id="checkout-postal" {...register('postalCode')} placeholder="1620" />
+                  <Input id="checkout-postal" {...register('postalCode')} />
                 </div>
               </div>
             </div>
