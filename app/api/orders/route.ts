@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     customer_name: string
     customer_lastname: string
     customer_phone: string
+    customer_email: string | null
     delivery_type: 'retiro' | 'envio'
     delivery_address: string | null
   }
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Invalid body' }, { status: 400 })
   }
 
-  const { items, subtotal, discount_amount, total, payment_method, customer_name, customer_lastname, customer_phone, delivery_type, delivery_address } = body
+  const { items, subtotal, discount_amount, total, payment_method, customer_name, customer_lastname, customer_phone, customer_email, delivery_type, delivery_address } = body
   if (!items?.length) return Response.json({ error: 'No items' }, { status: 400 })
 
   const has_made_to_order = items.some((i) => i.is_made_to_order)
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
       customer_name,
       customer_lastname,
       customer_phone,
-      customer_email: null,
+      customer_email: customer_email ?? null,
       delivery_type,
       delivery_address: delivery_address ?? null,
       subtotal,

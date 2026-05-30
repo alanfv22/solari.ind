@@ -140,6 +140,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
     handleSubmit,
     setValue,
     watch,
+    reset,
     formState: { errors, submitCount },
   } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -311,7 +312,33 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
       }
 
       toast.success(mode === 'new' ? 'Producto creado' : 'Producto actualizado')
-      router.push(mode === 'new' ? `/admin/productos/${productId}` : '/admin/productos')
+
+      if (mode === 'new') {
+        // Reset form and all local state for a fresh product entry
+        reset({
+          name: '',
+          description: '',
+          base_price: 0,
+          is_on_sale: false,
+          sale_percent: 10,
+          category_id: '',
+          gender: 'mujer',
+          is_made_to_order: false,
+          active: true,
+          variants: [],
+        })
+        setSizeType('letters')
+        setSelectedSizes([])
+        setColorsInput('')
+        setVariantsRegenerated(false)
+        productPreviews.forEach((url) => URL.revokeObjectURL(url))
+        setProductImages([])
+        setProductPreviews([])
+        setExistingImages([])
+        setImageSubmitAttempted(false)
+      } else {
+        router.push('/admin/productos')
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error desconocido')
     } finally {
@@ -610,7 +637,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
             type="button"
             variant="outline"
             onClick={handleGenerate}
-            disabled={selectedSizes.length === 0}
+            disabled={sizeType !== 'unique' && selectedSizes.length === 0}
             className="gap-2"
           >
             <Shuffle className="h-4 w-4" />
