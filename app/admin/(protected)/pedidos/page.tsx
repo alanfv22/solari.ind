@@ -453,7 +453,7 @@ export default function PedidosPage() {
         })}
       </div>
 
-      {/* Table */}
+      {/* Orders list */}
       {loading ? (
         <OrdersSkeleton />
       ) : filtered.length === 0 ? (
@@ -465,92 +465,125 @@ export default function PedidosPage() {
           </p>
         </div>
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Fecha</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Cliente</th>
-                <th className="text-center px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">
-                  Ítems
-                </th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
-                  Total
-                </th>
-                <th className="text-center px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">
-                  Tipo
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Estado</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filtered.map((order) => (
-                <tr
-                  key={order.id}
-                  className="hover:bg-muted/30 transition-colors cursor-pointer"
-                  onClick={() => openDetail(order.id)}
-                >
-                  <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+        <>
+          {/* Mobile card list */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {filtered.map((order) => (
+              <div
+                key={order.id}
+                className="rounded-lg border border-border bg-card p-4 cursor-pointer active:bg-muted/40 transition-colors"
+                onClick={() => openDetail(order.id)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-sm font-semibold text-foreground">
+                    #{String(order.order_number).padStart(5, '0')}
+                  </span>
+                  <StatusBadge status={order.status} />
+                </div>
+                <p className="mt-1.5 font-medium text-foreground">
+                  {order.customer_name}{order.customer_lastname ? ` ${order.customer_lastname}` : ''}
+                </p>
+                <div className="mt-2 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
                     {new Date(order.created_at).toLocaleDateString('es-AR', {
                       day: '2-digit',
                       month: '2-digit',
                       year: '2-digit',
                     })}
-                    <span className="hidden sm:inline ml-1 text-xs">
-                      {new Date(order.created_at).toLocaleTimeString('es-AR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="font-medium">{order.customer_name}</p>
-                    {order.customer_email && (
-                      <p className="text-xs text-muted-foreground hidden md:block">
-                        {order.customer_email}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-center hidden sm:table-cell">
-                    <Badge variant="secondary" className="tabular-nums">
-                      {order.items?.length ?? 0}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium tabular-nums hidden md:table-cell">
-                    {formatPrice(order.total)}
-                  </td>
-                  <td className="px-4 py-3 text-center hidden sm:table-cell">
-                    <span className="inline-flex items-center gap-1">
-                      {order.has_made_to_order && (
-                        <span title="Tiene ítems a pedido">🔵</span>
-                      )}
-                      {order.has_out_of_stock && (
-                        <span title="Tiene ítems sin stock">⚠️</span>
-                      )}
-                      {!order.has_made_to_order && !order.has_out_of_stock && (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={order.status} />
-                  </td>
-                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      onClick={() => openDetail(order.id)}
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                    </Button>
-                  </td>
+                    {' · '}
+                    {new Date(order.created_at).toLocaleTimeString('es-AR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                  <span className="font-semibold tabular-nums">{formatPrice(order.total)}</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-3 w-full"
+                  onClick={(e) => { e.stopPropagation(); openDetail(order.id) }}
+                >
+                  <Eye className="h-3.5 w-3.5 mr-2" />
+                  Ver detalle
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block rounded-lg border border-border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b border-border">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Fecha</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Cliente</th>
+                  <th className="text-center px-4 py-3 font-medium text-muted-foreground">Ítems</th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Total</th>
+                  <th className="text-center px-4 py-3 font-medium text-muted-foreground">Tipo</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Estado</th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map((order) => (
+                  <tr
+                    key={order.id}
+                    className="hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => openDetail(order.id)}
+                  >
+                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                      {new Date(order.created_at).toLocaleDateString('es-AR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: '2-digit',
+                      })}
+                      <span className="ml-1 text-xs">
+                        {new Date(order.created_at).toLocaleTimeString('es-AR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium">{order.customer_name}</p>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <Badge variant="secondary" className="tabular-nums">
+                        {order.items?.length ?? 0}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums">
+                      {formatPrice(order.total)}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-flex items-center gap-1">
+                        {order.has_made_to_order && <span title="Tiene ítems a pedido">🔵</span>}
+                        {order.has_out_of_stock && <span title="Tiene ítems sin stock">⚠️</span>}
+                        {!order.has_made_to_order && !order.has_out_of_stock && (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={order.status} />
+                    </td>
+                    <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => openDetail(order.id)}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Detail modal */}

@@ -73,8 +73,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   console.log('[PUT] order_items:', JSON.stringify(rawItems))
 
-  // Deduct stock when moving to 'confirmado'
-  if (newStatus === 'confirmado' && prevStatus === 'pendiente') {
+  // Deduct stock when moving to any post-confirmation status from 'pendiente'
+  if (STOCK_DEDUCTED_STATUSES.includes(newStatus) && prevStatus === 'pendiente') {
     console.log(`[stock-deduct] entering deduction loop for ${rawItems?.length ?? 0} items`)
 
     for (const item of rawItems ?? []) {
