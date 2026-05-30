@@ -26,7 +26,7 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
     <div className="flex flex-col gap-4">
       {/* Main Image */}
       <div
-        className="relative h-[420px] w-full overflow-hidden rounded-lg bg-secondary lg:aspect-[3/4] lg:h-auto"
+        className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-secondary"
         style={{ touchAction: 'pan-y' }}
       >
         <AnimatePresence mode="wait">
@@ -43,7 +43,7 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
                 src={images[selectedIndex]}
                 alt={`${productName} - imagen ${selectedIndex + 1}`}
                 fill
-                className="object-cover object-top"
+                className="object-cover"
                 priority={selectedIndex === 0}
               />
             )}
