@@ -100,8 +100,11 @@ export interface Order {
   order_number: number
   created_at: string
   customer_name: string
+  customer_lastname: string | null
   customer_phone: string | null
   customer_email: string | null
+  delivery_type: 'retiro' | 'envio' | null
+  delivery_address: string | null
   subtotal: number
   discount_amount: number
   total: number

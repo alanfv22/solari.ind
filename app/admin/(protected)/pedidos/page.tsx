@@ -13,6 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { formatPrice } from '@/lib/data'
 import type { Order, OrderItem, OrderStatus } from '@/lib/types'
 
@@ -57,21 +64,14 @@ const STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
   },
 }
 
-const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
-  pendiente: 'confirmado',
-  confirmado: 'en_preparacion',
-  en_preparacion: 'enviado',
-  enviado: 'entregado',
-}
-
-const NEXT_STATUS_LABEL: Partial<Record<OrderStatus, string>> = {
-  pendiente: 'Confirmar pedido',
-  confirmado: 'Iniciar preparación',
-  en_preparacion: 'Marcar como enviado',
-  enviado: 'Marcar como entregado',
-}
-
 const ALL_STATUSES = Object.keys(STATUS_CONFIG) as OrderStatus[]
+
+function getAvailableStatuses(deliveryType: 'retiro' | 'envio' | null): OrderStatus[] {
+  if (deliveryType === 'retiro') {
+    return ['pendiente', 'confirmado', 'en_preparacion', 'entregado', 'cancelado']
+  }
+  return ALL_STATUSES
+}
 
 // ─── Row type (list view) ─────────────────────────────────────────────────────
 
@@ -163,8 +163,7 @@ function OrderDetailModal({
     return primary?.url ?? images[0]?.url ?? null
   }
 
-  const nextStatus = order ? NEXT_STATUS[order.status] : undefined
-  const canCancel = order && order.status !== 'cancelado' && order.status !== 'entregado'
+  const availableStatuses = order ? getAvailableStatuses(order.delivery_type) : ALL_STATUSES
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -198,17 +197,28 @@ function OrderDetailModal({
               </p>
             </DialogHeader>
 
-            {/* Customer info */}
+            {/* Customer + delivery info */}
             <div className="rounded-lg border border-border p-4 space-y-1.5 text-sm">
               <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide mb-2">
                 Cliente
               </p>
-              <p className="font-medium">{order.customer_name}</p>
+              <p className="font-medium">
+                {order.customer_name}{order.customer_lastname ? ` ${order.customer_lastname}` : ''}
+              </p>
               {order.customer_phone && (
                 <p className="text-muted-foreground">{order.customer_phone}</p>
               )}
               {order.customer_email && (
                 <p className="text-muted-foreground">{order.customer_email}</p>
+              )}
+              {order.delivery_type && (
+                <p>
+                  <span className="text-muted-foreground">Entrega: </span>
+                  {order.delivery_type === 'envio' ? '🚚 Envío a domicilio' : '🏪 Retiro en local'}
+                  {order.delivery_type === 'envio' && order.delivery_address && (
+                    <span className="ml-1 text-muted-foreground">— {order.delivery_address}</span>
+                  )}
+                </p>
               )}
               {order.payment_method && (
                 <p>
@@ -304,37 +314,28 @@ function OrderDetailModal({
               </div>
             </div>
 
-            {/* Actions */}
-            {(nextStatus || canCancel) && (
-              <div className="flex items-center justify-between gap-3 pt-1">
-                <div>
-                  {canCancel && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={updating}
-                      className="text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
-                      onClick={() => handleStatusChange('cancelado')}
-                    >
-                      {updating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      Cancelar pedido
-                    </Button>
-                  )}
-                </div>
-                <div>
-                  {nextStatus && (
-                    <Button
-                      size="sm"
-                      disabled={updating}
-                      onClick={() => handleStatusChange(nextStatus)}
-                    >
-                      {updating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      {NEXT_STATUS_LABEL[order.status]} →
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Status selector */}
+            <div className="flex items-center gap-3 pt-1">
+              <span className="text-sm text-muted-foreground shrink-0">Cambiar estado:</span>
+              <Select
+                value={order.status}
+                onValueChange={(v) => handleStatusChange(v as OrderStatus)}
+                disabled={updating}
+              >
+                <SelectTrigger className="w-48">
+                  {updating
+                    ? <span className="flex items-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Actualizando…</span>
+                    : <SelectValue />}
+                </SelectTrigger>
+                <SelectContent>
+                  {availableStatuses.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {STATUS_CONFIG[s].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </>
         )}
       </DialogContent>

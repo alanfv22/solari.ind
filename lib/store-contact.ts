@@ -11,6 +11,7 @@ export function normalizeWhatsAppDigits(phone: string | null): string | null {
 export interface StoreContact {
   whatsappDigits: string | null
   cashDiscountPercent: number
+  storeAddress: string | null
 }
 
 /**
@@ -25,18 +26,19 @@ export async function fetchStoreContact(): Promise<StoreContact> {
 
   const { data, error } = await supabase
     .from('stores')
-    .select('whatsapp_number, cash_discount_percent')
+    .select('whatsapp_number, cash_discount_percent, address')
     .eq('id', storeId)
     .maybeSingle()
 
   if (error) {
     console.error('[stores] Supabase Error:', error.message)
-    return { whatsappDigits: null, cashDiscountPercent: 20 }
+    return { whatsappDigits: null, cashDiscountPercent: 20, storeAddress: null }
   }
 
   return {
     whatsappDigits: normalizeWhatsAppDigits(data?.whatsapp_number ?? null),
     cashDiscountPercent: data?.cash_discount_percent ?? 20,
+    storeAddress: data?.address ?? null,
   }
 }
 

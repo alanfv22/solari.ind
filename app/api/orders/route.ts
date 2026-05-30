@@ -17,14 +17,23 @@ type ItemPayload = {
 export async function POST(request: Request) {
   const db = getAdminSupabase()
 
-  let body: { items: ItemPayload[]; subtotal: number; total: number }
+  let body: {
+    items: ItemPayload[]
+    subtotal: number
+    total: number
+    customer_name: string
+    customer_lastname: string
+    customer_phone: string
+    delivery_type: 'retiro' | 'envio'
+    delivery_address: string | null
+  }
   try {
     body = await request.json()
   } catch {
     return Response.json({ error: 'Invalid body' }, { status: 400 })
   }
 
-  const { items, subtotal, total } = body
+  const { items, subtotal, total, customer_name, customer_lastname, customer_phone, delivery_type, delivery_address } = body
   if (!items?.length) return Response.json({ error: 'No items' }, { status: 400 })
 
   const has_made_to_order = items.some((i) => i.is_made_to_order)
@@ -34,9 +43,12 @@ export async function POST(request: Request) {
     .from('orders')
     .insert({
       store_id: STORE_ID,
-      customer_name: 'Sin nombre',
-      customer_phone: '',
+      customer_name,
+      customer_lastname,
+      customer_phone,
       customer_email: null,
+      delivery_type,
+      delivery_address: delivery_address ?? null,
       subtotal,
       discount_amount: 0,
       total,

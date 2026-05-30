@@ -10,7 +10,8 @@ export async function GET(request: Request) {
   const { data, error } = await db
     .from('orders')
     .select(
-      `id, store_id, order_number, created_at, customer_name, customer_phone, customer_email,
+      `id, store_id, order_number, created_at, customer_name, customer_lastname, customer_phone, customer_email,
+       delivery_type, delivery_address,
        subtotal, discount_amount, total, payment_method, status, notes,
        has_made_to_order, has_out_of_stock,
        items:order_items(id)`

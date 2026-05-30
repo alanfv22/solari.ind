@@ -16,6 +16,9 @@ interface CartStore {
   /** Dígitos para wa.me; se actualiza desde Supabase en el cliente. */
   whatsappDigits: string | null
   setWhatsappDigits: (digits: string | null) => void
+  /** Dirección física del local, traída desde stores. */
+  storeAddress: string | null
+  setStoreAddress: (address: string | null) => void
   /** Descuento por pago en efectivo/transferencia, traído desde stores. */
   cashDiscountPercent: number
   setCashDiscountPercent: (percent: number) => void
@@ -29,8 +32,22 @@ interface CartStore {
   clearCart: () => void
   getItemCount: () => number
   getSubtotal: () => number
-  generateWhatsAppMessage: () => string
-  getWhatsAppUrl: () => string
+  generateWhatsAppMessage: (opts?: {
+    customerName: string
+    customerLastname: string
+    customerPhone: string
+    deliveryType: 'retiro' | 'envio'
+    deliveryAddress: string | null
+    storeAddress?: string | null
+  }) => string
+  getWhatsAppUrl: (opts?: {
+    customerName: string
+    customerLastname: string
+    customerPhone: string
+    deliveryType: 'retiro' | 'envio'
+    deliveryAddress: string | null
+    storeAddress?: string | null
+  }) => string
 }
 
 export const useCartStore = create<CartStore>()(
@@ -39,6 +56,8 @@ export const useCartStore = create<CartStore>()(
       items: [],
       whatsappDigits: null,
       setWhatsappDigits: (digits) => set({ whatsappDigits: digits }),
+      storeAddress: null,
+      setStoreAddress: (address) => set({ storeAddress: address }),
       cashDiscountPercent: 20,
       setCashDiscountPercent: (percent) => set({ cashDiscountPercent: percent }),
 
@@ -108,7 +127,7 @@ export const useCartStore = create<CartStore>()(
         }, 0)
       },
 
-      generateWhatsAppMessage: () => {
+      generateWhatsAppMessage: (opts) => {
         const { items } = get()
         if (items.length === 0) return ''
 
@@ -117,6 +136,19 @@ export const useCartStore = create<CartStore>()(
         const madeToOrder = items.filter(i => i.product.is_made_to_order)
 
         let message = 'Hola! Me interesa hacer el siguiente pedido:\n'
+
+        if (opts) {
+          message += `\n👤 *Cliente:* ${opts.customerName} ${opts.customerLastname}`
+          message += `\n📞 *Teléfono:* ${opts.customerPhone}`
+          if (opts.deliveryType === 'envio') {
+            message += `\n🚚 *Entrega:* Envío a domicilio`
+            if (opts.deliveryAddress) message += ` — ${opts.deliveryAddress}`
+          } else {
+            message += `\n🏪 *Entrega:* Retiro en local`
+            if (opts.storeAddress) message += ` — ${opts.storeAddress}`
+          }
+          message += '\n'
+        }
 
         if (inStock.length > 0) {
           message += '\n✅ *Disponibles:*\n'
@@ -157,8 +189,8 @@ export const useCartStore = create<CartStore>()(
         return message
       },
 
-      getWhatsAppUrl: () => {
-        const message = get().generateWhatsAppMessage()
+      getWhatsAppUrl: (opts) => {
+        const message = get().generateWhatsAppMessage(opts)
         const encodedMessage = encodeURIComponent(message)
         const digits = get().whatsappDigits ?? ''
         return `https://wa.me/${digits}?text=${encodedMessage}`
