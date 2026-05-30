@@ -43,7 +43,7 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
                 src={images[selectedIndex]}
                 alt={`${productName} - imagen ${selectedIndex + 1}`}
                 fill
-                className="object-contain lg:object-cover"
+                className="object-cover object-top"
                 priority={selectedIndex === 0}
               />
             )}
