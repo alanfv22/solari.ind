@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ImagePlus, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -21,8 +21,6 @@ import type { Category } from '@/lib/types'
 
 const schema = z.object({
   name: z.string().min(1, 'Requerido'),
-  slug: z.string().min(1, 'Requerido').regex(/^[a-z0-9-]+$/, 'Solo minúsculas, números y guiones'),
-  icon_url: z.string().url('URL inválida').or(z.literal('')).optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -47,13 +45,14 @@ interface CategoryDialogProps {
 
 export function CategoryDialog({ open, onOpenChange, category, onSaved }: CategoryDialogProps) {
   const [saving, setSaving] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const isEdit = !!category
 
   const {
     register,
     handleSubmit,
-    watch,
-    setValue,
     reset,
     formState: { errors },
   } = useForm<FormData>({
@@ -62,29 +61,54 @@ export function CategoryDialog({ open, onOpenChange, category, onSaved }: Catego
 
   useEffect(() => {
     if (open) {
-      reset({
-        name: category?.name ?? '',
-        slug: category?.slug ?? '',
-        icon_url: category?.icon_url ?? '',
-      })
+      reset({ name: category?.name ?? '' })
+      setImageFile(null)
+      setPreviewUrl(category?.icon_url ?? null)
     }
   }, [open, category, reset])
 
-  const name = watch('name')
-  useEffect(() => {
-    if (!isEdit && name) setValue('slug', toSlug(name))
-  }, [name, isEdit, setValue])
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    if (previewUrl && previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(URL.createObjectURL(file))
+    e.target.value = ''
+  }
+
+  function clearImage() {
+    if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl)
+    setImageFile(null)
+    setPreviewUrl(null)
+  }
 
   async function onSubmit(data: FormData) {
     setSaving(true)
     try {
+      const slug = isEdit ? (category!.slug) : toSlug(data.name)
+      let icon_url: string | null = isEdit ? (category!.icon_url ?? null) : null
+
+      // Si hay imagen nueva, subirla primero
+      if (imageFile) {
+        const form = new FormData()
+        form.append('file', imageFile)
+        form.append('name', data.name)
+        const uploadRes = await fetch('/api/admin/categories/upload', { method: 'POST', body: form })
+        const uploadJson = await uploadRes.json()
+        if (!uploadRes.ok) throw new Error(uploadJson.error || 'Error al subir imagen')
+        icon_url = uploadJson.url
+      } else if (!previewUrl) {
+        // El usuario eliminó la imagen existente
+        icon_url = null
+      }
+
       const url = isEdit ? `/api/admin/categories/${category!.id}` : '/api/admin/categories'
       const method = isEdit ? 'PUT' : 'POST'
 
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: data.name, slug: data.slug, icon_url: data.icon_url || null }),
+        body: JSON.stringify({ name: data.name, slug, icon_url }),
       })
 
       const json = await res.json()
@@ -107,25 +131,53 @@ export function CategoryDialog({ open, onOpenChange, category, onSaved }: Catego
           <DialogTitle>{isEdit ? 'Editar categoría' : 'Nueva categoría'}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 py-2">
+          {/* Nombre */}
           <div className="space-y-1.5">
             <Label htmlFor="cat-name">Nombre *</Label>
             <Input id="cat-name" {...register('name')} placeholder="Remeras" />
             {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="cat-slug">Slug *</Label>
-            <Input id="cat-slug" {...register('slug')} placeholder="remeras" />
-            {errors.slug && <p className="text-xs text-destructive">{errors.slug.message}</p>}
-          </div>
+          {/* Imagen */}
+          <div className="space-y-2">
+            <Label>Imagen de categoría</Label>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="cat-icon">URL del ícono (opcional)</Label>
-            <Input id="cat-icon" {...register('icon_url')} placeholder="https://..." type="url" />
-            {errors.icon_url && (
-              <p className="text-xs text-destructive">{errors.icon_url.message}</p>
-            )}
+            {previewUrl ? (
+              <div className="relative w-full aspect-[3/4] max-w-[140px] overflow-hidden rounded-lg border border-border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewUrl}
+                  alt="Preview"
+                  className="h-full w-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={clearImage}
+                  className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : null}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <ImagePlus className="h-4 w-4" />
+              {previewUrl ? 'Reemplazar imagen' : 'Seleccionar imagen'}
+            </Button>
           </div>
 
           <DialogFooter className="pt-2">
