@@ -223,7 +223,11 @@ function OrderDetailModal({
               {order.payment_method && (
                 <p>
                   <span className="text-muted-foreground">Pago: </span>
-                  {order.payment_method}
+                  {order.payment_method === 'transferencia'
+                    ? '💳 Transferencia bancaria'
+                    : order.payment_method === 'tarjeta'
+                    ? '💳 Tarjeta de crédito/débito'
+                    : order.payment_method}
                 </p>
               )}
               {order.notes && (

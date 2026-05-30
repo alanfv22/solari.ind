@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { useCartStore } from '@/lib/cart-store'
 import { formatPrice } from '@/lib/data'
 import { CheckoutModal } from '@/components/cart/checkout-modal'
+import { cn } from '@/lib/utils'
 
 export function CartDrawer() {
   const {
@@ -58,6 +59,8 @@ export function CartDrawer() {
                 {items.map((item, idx) => {
                   const price = item.variant?.price_override ?? item.product.base_price
                   const outOfStock = !item.product.is_made_to_order && (item.variant?.stock ?? 1) <= 0
+                  const maxStock = item.variant?.stock ?? 1
+                  const atMaxStock = !item.product.is_made_to_order && item.quantity >= maxStock
                   return (
                     <motion.div
                       key={`${item.product.id}-${item.variant?.id ?? 'no-variant'}`}
@@ -113,30 +116,41 @@ export function CartDrawer() {
                         </div>
 
                         {/* Quantity + Price */}
-                        <div className="mt-auto flex items-center justify-between pt-3">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => updateQuantity(item.product.id, item.variant?.id ?? null, item.quantity - 1)}
-                              className="flex h-7 w-7 items-center justify-center rounded-full border border-border transition-colors hover:bg-secondary"
-                            >
-                              <Minus className="h-3 w-3" />
-                              <span className="sr-only">Reducir cantidad</span>
-                            </button>
-                            <span className="w-5 text-center text-sm font-medium">
-                              {item.quantity}
-                            </span>
-                            <button
-                              onClick={() => updateQuantity(item.product.id, item.variant?.id ?? null, item.quantity + 1)}
-                              className="flex h-7 w-7 items-center justify-center rounded-full border border-border transition-colors hover:bg-secondary"
-                            >
-                              <Plus className="h-3 w-3" />
-                              <span className="sr-only">Aumentar cantidad</span>
-                            </button>
-                          </div>
+                        <div className="mt-auto pt-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => updateQuantity(item.product.id, item.variant?.id ?? null, item.quantity - 1)}
+                                className="flex h-7 w-7 items-center justify-center rounded-full border border-border transition-colors hover:bg-secondary"
+                              >
+                                <Minus className="h-3 w-3" />
+                                <span className="sr-only">Reducir cantidad</span>
+                              </button>
+                              <span className="w-5 text-center text-sm font-medium">
+                                {item.quantity}
+                              </span>
+                              <button
+                                onClick={() => updateQuantity(item.product.id, item.variant?.id ?? null, item.quantity + 1)}
+                                disabled={atMaxStock}
+                                className={cn(
+                                  'flex h-7 w-7 items-center justify-center rounded-full border border-border transition-colors',
+                                  atMaxStock ? 'opacity-40 cursor-not-allowed' : 'hover:bg-secondary'
+                                )}
+                              >
+                                <Plus className="h-3 w-3" />
+                                <span className="sr-only">Aumentar cantidad</span>
+                              </button>
+                            </div>
 
-                          <span className="text-base font-bold text-foreground tabular-nums">
-                            {formatPrice(price * item.quantity)}
-                          </span>
+                            <span className="text-base font-bold text-foreground tabular-nums">
+                              {formatPrice(price * item.quantity)}
+                            </span>
+                          </div>
+                          {atMaxStock && (
+                            <p className="text-[10px] text-amber-700 mt-1.5">
+                              Stock máximo: {maxStock} {maxStock === 1 ? 'unidad' : 'unidades'}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </motion.div>

@@ -20,7 +20,9 @@ export async function POST(request: Request) {
   let body: {
     items: ItemPayload[]
     subtotal: number
+    discount_amount: number
     total: number
+    payment_method: 'transferencia' | 'tarjeta'
     customer_name: string
     customer_lastname: string
     customer_phone: string
@@ -33,7 +35,7 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Invalid body' }, { status: 400 })
   }
 
-  const { items, subtotal, total, customer_name, customer_lastname, customer_phone, delivery_type, delivery_address } = body
+  const { items, subtotal, discount_amount, total, payment_method, customer_name, customer_lastname, customer_phone, delivery_type, delivery_address } = body
   if (!items?.length) return Response.json({ error: 'No items' }, { status: 400 })
 
   const has_made_to_order = items.some((i) => i.is_made_to_order)
@@ -50,9 +52,9 @@ export async function POST(request: Request) {
       delivery_type,
       delivery_address: delivery_address ?? null,
       subtotal,
-      discount_amount: 0,
+      discount_amount: discount_amount ?? 0,
       total,
-      payment_method: null,
+      payment_method: payment_method ?? null,
       status: 'pendiente',
       notes: null,
       has_made_to_order,

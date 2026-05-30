@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useCartStore } from '@/lib/cart-store'
+import { formatPrice } from '@/lib/data'
 
 const schema = z
   .object({
@@ -26,6 +27,7 @@ const schema = z
       .regex(/^\d+$/, 'Solo se permiten números')
       .min(8, 'Mínimo 8 dígitos'),
     deliveryType: z.enum(['retiro', 'envio']),
+    paymentMethod: z.enum(['transferencia', 'tarjeta']),
     street: z.string().optional(),
     locality: z.string().optional(),
     postalCode: z.string().optional(),
@@ -49,8 +51,11 @@ interface CheckoutModalProps {
 }
 
 export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits }: CheckoutModalProps) {
-  const { items, getSubtotal, generateWhatsAppMessage, clearCart } = useCartStore()
+  const { items, getSubtotal, generateWhatsAppMessage, clearCart, cashDiscountPercent } = useCartStore()
   const [submitting, setSubmitting] = useState(false)
+
+  const subtotal = getSubtotal()
+  const totalTransferencia = Math.round(subtotal * (1 - cashDiscountPercent / 100))
 
   const {
     register,
@@ -60,10 +65,12 @@ export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { deliveryType: 'retiro' },
+    defaultValues: { deliveryType: 'retiro', paymentMethod: 'transferencia' },
   })
 
   const deliveryType = watch('deliveryType')
+  const paymentMethod = watch('paymentMethod')
+  const totalFinal = paymentMethod === 'transferencia' ? totalTransferencia : subtotal
 
   function buildDeliveryAddress(data: FormData): string | null {
     if (data.deliveryType !== 'envio') return null
@@ -77,8 +84,9 @@ export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits
     if (!items.length) return
     setSubmitting(true)
 
-    const subtotal = getSubtotal()
     const deliveryAddress = buildDeliveryAddress(data)
+    const orderTotal = data.paymentMethod === 'transferencia' ? totalTransferencia : subtotal
+    const discountAmount = data.paymentMethod === 'transferencia' ? subtotal - totalTransferencia : 0
 
     // Split fullName into name + lastname for storage
     const nameParts = data.fullName.trim().split(/\s+/)
@@ -92,12 +100,16 @@ export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits
       deliveryType: data.deliveryType,
       deliveryAddress,
       storeAddress,
+      paymentMethod: data.paymentMethod,
+      total: orderTotal,
     }
 
     try {
       const payload = {
         subtotal,
-        total: subtotal,
+        discount_amount: discountAmount,
+        total: orderTotal,
+        payment_method: data.paymentMethod,
         customer_name,
         customer_lastname,
         customer_phone: data.phone,
@@ -185,6 +197,42 @@ export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits
             </div>
           </div>
 
+          {/* Medio de pago */}
+          <div className="space-y-2">
+            <Label>Medio de pago *</Label>
+            <div className="flex flex-col gap-2">
+              <label className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${
+                paymentMethod === 'transferencia'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border text-muted-foreground hover:border-foreground/30'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <input type="radio" value="transferencia" {...register('paymentMethod')} className="sr-only" />
+                  <span className="text-sm font-medium">Transferencia bancaria</span>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded leading-none">
+                    -{cashDiscountPercent}% off
+                  </span>
+                </div>
+                <span className="text-sm font-bold text-emerald-700 tabular-nums shrink-0">
+                  {formatPrice(totalTransferencia)}
+                </span>
+              </label>
+              <label className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${
+                paymentMethod === 'tarjeta'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border text-muted-foreground hover:border-foreground/30'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <input type="radio" value="tarjeta" {...register('paymentMethod')} className="sr-only" />
+                  <span className="text-sm font-medium">Tarjeta de crédito/débito</span>
+                </div>
+                <span className="text-sm font-medium tabular-nums shrink-0">
+                  {formatPrice(subtotal)}
+                </span>
+              </label>
+            </div>
+          </div>
+
           {/* Dirección desglosada (solo envío) */}
           {deliveryType === 'envio' && (
             <div className="space-y-3">
@@ -214,7 +262,15 @@ export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits
             </p>
           )}
 
-          <div className="flex gap-2 pt-2">
+          {/* Total final */}
+          <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2.5">
+            <span className="text-sm font-medium">Total a pagar</span>
+            <span className={`text-base font-bold tabular-nums ${paymentMethod === 'transferencia' ? 'text-emerald-700' : ''}`}>
+              {formatPrice(totalFinal)}
+            </span>
+          </div>
+
+          <div className="flex gap-2 pt-1">
             <Button type="button" variant="ghost" className="flex-1" onClick={() => { reset(); onOpenChange(false) }}>
               Cancelar
             </Button>

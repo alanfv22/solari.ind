@@ -39,6 +39,8 @@ interface CartStore {
     deliveryType: 'retiro' | 'envio'
     deliveryAddress: string | null
     storeAddress?: string | null
+    paymentMethod?: 'transferencia' | 'tarjeta'
+    total?: number
   }) => string
   getWhatsAppUrl: (opts?: {
     customerName: string
@@ -47,6 +49,8 @@ interface CartStore {
     deliveryType: 'retiro' | 'envio'
     deliveryAddress: string | null
     storeAddress?: string | null
+    paymentMethod?: 'transferencia' | 'tarjeta'
+    total?: number
   }) => string
 }
 
@@ -104,6 +108,15 @@ export const useCartStore = create<CartStore>()(
           return
         }
 
+        // Clamp to available stock for non-made-to-order products
+        const existingItem = get().items.find(
+          (i) => i.product.id === productId && (i.variant?.id ?? null) === variantId
+        )
+        if (existingItem && !existingItem.product.is_made_to_order) {
+          const maxStock = existingItem.variant?.stock ?? 1
+          quantity = Math.min(quantity, maxStock)
+        }
+
         set((state) => ({
           items: state.items.map((item) =>
             item.product.id === productId &&
@@ -148,6 +161,12 @@ export const useCartStore = create<CartStore>()(
             message += `\n🏪 *Entrega:* Retiro en local`
             if (opts.storeAddress) message += ` — ${opts.storeAddress}`
           }
+          if (opts.paymentMethod) {
+            const paymentLabel = opts.paymentMethod === 'transferencia'
+              ? 'Transferencia bancaria'
+              : 'Tarjeta de crédito/débito'
+            message += `\n💳 *Pago:* ${paymentLabel}`
+          }
           message += '\n'
         }
 
@@ -182,7 +201,8 @@ export const useCartStore = create<CartStore>()(
         }, 0)
 
         if (billableSubtotal > 0) {
-          message += `\nTotal estimado: ${formatPrice(billableSubtotal)}`
+          const displayTotal = opts?.total ?? billableSubtotal
+          message += `\nTotal estimado: ${formatPrice(displayTotal)}`
           if (outOfStock.length > 0) message += ' _(sujeto a disponibilidad de stock)_'
         }
 
