@@ -7,7 +7,12 @@ import { motion } from 'framer-motion'
 import { ShoppingBag, Eye, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useCartStore } from '@/lib/cart-store'
 import { formatPrice } from '@/lib/data'
 import type { Product, ProductVariant } from '@/lib/types'
@@ -175,6 +180,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                 onClick={openSheet}
                 className="flex-1 gap-2 bg-slate-900 text-slate-100 hover:bg-slate-800"
                 size="sm"
+                aria-haspopup="dialog"
               >
                 <ShoppingBag className="h-4 w-4" />
                 Agregar
@@ -231,115 +237,76 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
         </Link>
       </motion.article>
 
-      {/* Variant selection sheet */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="bottom" className="rounded-t-2xl px-5 pb-8 pt-5 max-h-[85vh] overflow-y-auto">
-          <SheetHeader className="mb-5 text-left">
-            <SheetTitle className="font-serif text-lg">{product.name}</SheetTitle>
+      {/* Variant selection dialog */}
+      <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-lg leading-snug">{product.name}</DialogTitle>
             {product.category?.name && (
               <p className="text-xs uppercase tracking-widest text-muted-foreground">
                 {product.category.name}
               </p>
             )}
-          </SheetHeader>
+          </DialogHeader>
 
-          <div className="space-y-5">
-            {isMultiDim ? (
-              <>
-                <div className="space-y-2.5">
-                  <p className="text-sm font-medium text-slate-700">
-                    Talle
-                    {selectedTalle && (
-                      <span className="ml-2 font-semibold text-slate-900">{selectedTalle}</span>
-                    )}
-                  </p>
+          <div className="space-y-5 pt-1">
+            {/* Talle */}
+            <div className="space-y-2.5">
+              <p className="text-sm font-medium text-slate-700">Talle</p>
+              <div className="flex flex-wrap gap-2">
+                {(isMultiDim ? talles : variants.map((v) => v.label)).map((talle) => {
+                  const available = isTalleAvailable(talle)
+                  const isSelected = selectedTalle === talle
+                  return (
+                    <button
+                      key={talle}
+                      onClick={() => handleSelectTalle(talle)}
+                      disabled={!available}
+                      className={cn(
+                        'flex h-10 min-w-[40px] items-center justify-center border px-3.5 text-sm font-medium transition-all',
+                        isSelected
+                          ? 'border-slate-900 bg-slate-900 text-white'
+                          : 'border-slate-300 bg-white text-slate-900 hover:border-slate-700',
+                        !available && 'cursor-not-allowed opacity-35 line-through'
+                      )}
+                    >
+                      {talle}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Color (solo productos multi-dimensión, siempre visible) */}
+            {isMultiDim && (
+              <div className="space-y-2.5">
+                <p className="text-sm font-medium text-slate-700">Color</p>
+                {!selectedTalle ? (
+                  <p className="text-xs text-muted-foreground">Primero elegí un talle</p>
+                ) : (
                   <div className="flex flex-wrap gap-2">
-                    {talles.map((talle) => {
-                      const available = isTalleAvailable(talle)
-                      const isSelected = selectedTalle === talle
+                    {colorsForTalle.map(({ color, variant }) => {
+                      const outOfStock = !product.is_made_to_order && variant.stock <= 0
+                      const isSelected = selectedColor === color
                       return (
                         <button
-                          key={talle}
-                          onClick={() => handleSelectTalle(talle)}
-                          disabled={!available}
+                          key={color}
+                          onClick={() => setSelectedColor(color)}
+                          disabled={outOfStock}
                           className={cn(
                             'flex h-10 min-w-[40px] items-center justify-center border px-3.5 text-sm font-medium transition-all',
                             isSelected
                               ? 'border-slate-900 bg-slate-900 text-white'
                               : 'border-slate-300 bg-white text-slate-900 hover:border-slate-700',
-                            !available && 'cursor-not-allowed opacity-35 line-through'
+                            outOfStock && 'cursor-not-allowed opacity-35 line-through'
                           )}
                         >
-                          {talle}
+                          {color}
                         </button>
                       )
                     })}
                   </div>
-                </div>
-
-                {selectedTalle && (
-                  <div className="space-y-2.5">
-                    <p className="text-sm font-medium text-slate-700">
-                      Color
-                      {selectedColor && (
-                        <span className="ml-2 font-semibold text-slate-900">{selectedColor}</span>
-                      )}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {colorsForTalle.map(({ color, variant }) => {
-                        const outOfStock = !product.is_made_to_order && variant.stock <= 0
-                        const isSelected = selectedColor === color
-                        return (
-                          <button
-                            key={color}
-                            onClick={() => setSelectedColor(color)}
-                            disabled={outOfStock}
-                            className={cn(
-                              'flex h-10 min-w-[40px] items-center justify-center border px-3.5 text-sm font-medium transition-all',
-                              isSelected
-                                ? 'border-slate-900 bg-slate-900 text-white'
-                                : 'border-slate-300 bg-white text-slate-900 hover:border-slate-700',
-                              outOfStock && 'cursor-not-allowed opacity-35 line-through'
-                            )}
-                          >
-                            {color}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
                 )}
-              </>
-            ) : (
-              <div className="space-y-2.5">
-                <p className="text-sm font-medium text-slate-700">
-                  Talle
-                  {selectedTalle && (
-                    <span className="ml-2 font-semibold text-slate-900">{selectedTalle}</span>
-                  )}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {variants.map((variant) => {
-                    const outOfStock = !product.is_made_to_order && variant.stock <= 0
-                    const isSelected = selectedTalle === variant.label
-                    return (
-                      <button
-                        key={variant.id}
-                        onClick={() => setSelectedTalle(variant.label)}
-                        disabled={outOfStock}
-                        className={cn(
-                          'flex h-10 min-w-[40px] items-center justify-center border px-3.5 text-sm font-medium transition-all',
-                          isSelected
-                            ? 'border-slate-900 bg-slate-900 text-white'
-                            : 'border-slate-300 bg-white text-slate-900 hover:border-slate-700',
-                          outOfStock && 'cursor-not-allowed opacity-35 line-through'
-                        )}
-                      >
-                        {variant.label}
-                      </button>
-                    )
-                  })}
-                </div>
               </div>
             )}
 
@@ -360,15 +327,13 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                 ? resolvedVariant && !product.is_made_to_order && resolvedVariant.stock <= 0
                   ? 'Consultar disponibilidad'
                   : 'Agregar al carrito'
-                : isMultiDim && !selectedTalle
+                : !selectedTalle
                   ? 'Elegí un talle'
-                  : isMultiDim && selectedTalle && !selectedColor
-                    ? 'Elegí un color'
-                    : 'Elegí un talle'}
+                  : 'Elegí un color'}
             </Button>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

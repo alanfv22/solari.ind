@@ -31,8 +31,9 @@ export function CartDrawer() {
   return (
     <>
     <Sheet open={isOpen} onOpenChange={closeCart}>
-      <SheetContent className="flex w-full flex-col bg-background sm:max-w-lg">
-        <SheetHeader className="border-b border-border pb-4">
+      <SheetContent className="flex w-full flex-col bg-background sm:max-w-lg p-0">
+        {/* Header */}
+        <SheetHeader className="border-b border-border px-4 py-4 shrink-0">
           <SheetTitle className="flex items-center gap-2 text-foreground">
             <ShoppingBag className="h-5 w-5" />
             Tu carrito
@@ -40,7 +41,7 @@ export function CartDrawer() {
         </SheetHeader>
 
         {items.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4">
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
               <ShoppingBag className="h-10 w-10 text-muted-foreground" />
             </div>
@@ -51,12 +52,12 @@ export function CartDrawer() {
           </div>
         ) : (
           <>
-            {/* Cart Items */}
-            <div className="flex-1 overflow-y-auto py-4">
+            {/* Cart Items — scrollable */}
+            <div className="flex-1 overflow-y-auto">
               <AnimatePresence mode="popLayout">
-                {items.map((item) => {
-                  const price =
-                    item.variant?.price_override ?? item.product.base_price
+                {items.map((item, idx) => {
+                  const price = item.variant?.price_override ?? item.product.base_price
+                  const outOfStock = !item.product.is_made_to_order && (item.variant?.stock ?? 1) <= 0
                   return (
                     <motion.div
                       key={`${item.product.id}-${item.variant?.id ?? 'no-variant'}`}
@@ -64,11 +65,7 @@ export function CartDrawer() {
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -20 }}
-                      className={`mb-4 flex gap-4 border-b border-border pb-4 last:border-0 ${
-                        !item.product.is_made_to_order && (item.variant?.stock ?? 1) <= 0
-                          ? 'opacity-75'
-                          : ''
-                      }`}
+                      className={`flex gap-3 px-4 py-4 ${idx < items.length - 1 ? 'border-b border-border' : ''} ${outOfStock ? 'opacity-75' : ''}`}
                     >
                       {/* Product Image */}
                       <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-md bg-secondary">
@@ -83,78 +80,61 @@ export function CartDrawer() {
                       </div>
 
                       {/* Product Details */}
-                      <div className="flex flex-1 flex-col">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h4 className="font-medium text-foreground leading-tight">
+                      <div className="flex flex-1 flex-col min-w-0">
+                        {/* Name + delete */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h4 className="font-medium text-sm text-foreground leading-tight">
                               {item.product.name}
                             </h4>
                             {item.variant && (
-                              <p className="text-sm text-muted-foreground">
+                              <p className="text-xs text-muted-foreground mt-0.5">
                                 {item.variant.label}
                               </p>
                             )}
-                            {!item.product.is_made_to_order && (item.variant?.stock ?? 1) <= 0 && (
-                              <span className="text-[10px] font-medium text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+                            {outOfStock && (
+                              <span className="text-[10px] font-medium text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded mt-1 inline-block">
                                 Sin stock · consulta
                               </span>
                             )}
                             {item.product.is_made_to_order && (
-                              <span className="text-[10px] font-medium text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">
+                              <span className="text-[10px] font-medium text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded mt-1 inline-block">
                                 A pedido
                               </span>
                             )}
                           </div>
                           <button
-                            onClick={() =>
-                              removeItem(
-                                item.product.id,
-                                item.variant?.id ?? null
-                              )
-                            }
-                            className="text-muted-foreground transition-colors hover:text-destructive"
+                            onClick={() => removeItem(item.product.id, item.variant?.id ?? null)}
+                            className="shrink-0 text-muted-foreground transition-colors hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
                             <span className="sr-only">Eliminar</span>
                           </button>
                         </div>
 
-                        <div className="mt-auto flex items-center justify-between pt-2">
-                          {/* Quantity Controls */}
+                        {/* Quantity + Price */}
+                        <div className="mt-auto flex items-center justify-between pt-3">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() =>
-                                updateQuantity(
-                                  item.product.id,
-                                  item.variant?.id ?? null,
-                                  item.quantity - 1
-                                )
-                              }
-                              className="flex h-8 w-8 items-center justify-center rounded-full border border-border transition-colors hover:bg-secondary"
+                              onClick={() => updateQuantity(item.product.id, item.variant?.id ?? null, item.quantity - 1)}
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-border transition-colors hover:bg-secondary"
                             >
                               <Minus className="h-3 w-3" />
                               <span className="sr-only">Reducir cantidad</span>
                             </button>
-                            <span className="w-6 text-center text-sm font-medium">
+                            <span className="w-5 text-center text-sm font-medium">
                               {item.quantity}
                             </span>
                             <button
-                              onClick={() =>
-                                updateQuantity(
-                                  item.product.id,
-                                  item.variant?.id ?? null,
-                                  item.quantity + 1
-                                )
-                              }
-                              className="flex h-8 w-8 items-center justify-center rounded-full border border-border transition-colors hover:bg-secondary"
+                              onClick={() => updateQuantity(item.product.id, item.variant?.id ?? null, item.quantity + 1)}
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-border transition-colors hover:bg-secondary"
                             >
                               <Plus className="h-3 w-3" />
                               <span className="sr-only">Aumentar cantidad</span>
                             </button>
                           </div>
 
-                          {/* Price */}
-                          <span className="font-semibold text-foreground">
+                          <span className="text-base font-bold text-foreground tabular-nums">
                             {formatPrice(price * item.quantity)}
                           </span>
                         </div>
@@ -165,38 +145,30 @@ export function CartDrawer() {
               </AnimatePresence>
             </div>
 
-            {/* Cart Footer */}
-            <div className="border-t border-border pt-4">
-              {/* Subtotal */}
+            {/* Cart Footer — sticky al fondo */}
+            <div className="shrink-0 border-t border-border bg-background px-4 pb-6 pt-4">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span className="text-xl font-semibold text-foreground">
+                <span className="text-sm text-muted-foreground">Subtotal</span>
+                <span className="text-lg font-semibold text-foreground tabular-nums">
                   {formatPrice(subtotal)}
                 </span>
               </div>
-
-              {/* Total con transferencia */}
-              <div className="flex items-center justify-between pb-4 pt-1">
+              <div className="flex items-center justify-between pt-1 pb-4">
                 <span className="text-sm text-emerald-700 font-medium">
                   Con transferencia ({cashDiscountPercent}% off)
                 </span>
-                <span className="text-xl font-bold text-emerald-700">
+                <span className="text-lg font-bold text-emerald-700 tabular-nums">
                   {formatPrice(totalTransferencia)}
                 </span>
               </div>
 
-              {/* Checkout CTA */}
               <Button
                 onClick={() => setCheckoutOpen(true)}
-                className="w-full"
+                className="w-full py-4 text-base h-auto"
                 size="lg"
               >
                 Realizar pedido
               </Button>
-
-              <p className="mt-3 text-center text-xs text-muted-foreground">
-                Te contactaremos para coordinar el pago y envío
-              </p>
             </div>
           </>
         )}
