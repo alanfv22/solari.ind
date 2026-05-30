@@ -59,6 +59,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (fetchError) return Response.json({ error: fetchError.message }, { status: 500 })
 
   const prevStatus: OrderStatus = order.status
+  console.log(`[status-change] order ${id}: ${prevStatus} → ${newStatus}`)
+  console.log(`[status-change] raw order.items from Supabase:`, JSON.stringify(order.items, null, 2))
+
   // Supabase returns joined rows as arrays; normalise to single objects
   type RawItem = {
     id: string

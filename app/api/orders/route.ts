@@ -76,8 +76,20 @@ export async function POST(request: Request) {
     subtotal: item.subtotal,
   }))
 
-  const { error: itemsError } = await db.from('order_items').insert(orderItems)
-  if (itemsError) return Response.json({ error: itemsError.message }, { status: 500 })
+  console.log('[create-order] inserting order_items:', orderItems.map(i => ({
+    order_id: i.order_id,
+    product_id: i.product_id,
+    variant_id: i.variant_id,
+    product_name: i.product_name,
+    quantity: i.quantity,
+  })))
 
+  const { error: itemsError } = await db.from('order_items').insert(orderItems)
+  if (itemsError) {
+    console.error('[create-order] order_items insert error:', itemsError)
+    return Response.json({ error: itemsError.message }, { status: 500 })
+  }
+
+  console.log('[create-order] order_items inserted successfully for order', order.id)
   return Response.json({ data: { id: order.id } }, { status: 201 })
 }
