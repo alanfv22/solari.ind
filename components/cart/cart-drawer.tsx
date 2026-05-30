@@ -27,6 +27,7 @@ export function CartDrawer() {
   const subtotal = getSubtotal()
 
   return (
+    <>
     <Sheet open={isOpen} onOpenChange={closeCart}>
       <SheetContent className="flex w-full flex-col bg-background sm:max-w-lg">
         <SheetHeader className="border-b border-border pb-4">
@@ -196,5 +197,6 @@ export function CartDrawer() {
       storeAddress={storeAddress}
       whatsappDigits={whatsappDigits}
     />
+    </>
   )
 }
