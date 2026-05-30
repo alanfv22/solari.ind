@@ -76,14 +76,39 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   // Deduct stock when moving to 'confirmado'
   if (newStatus === 'confirmado' && prevStatus === 'pendiente') {
+    console.log(`[stock-deduct] order ${id} → confirmado. Items:`, items.map(i => ({
+      id: i.id,
+      variant_id: i.variant_id,
+      quantity: i.quantity,
+      is_made_to_order: i.product?.is_made_to_order,
+      variant_from_join: i.variant,
+    })))
+
     for (const item of items) {
       const isMadeToOrder = item.product?.is_made_to_order ?? false
       const variantId = item.variant_id
-      const currentStock = item.variant?.stock ?? 0
 
-      if (!isMadeToOrder && variantId && currentStock > 0) {
-        const newStock = Math.max(0, currentStock - item.quantity)
-        await db.from('product_variants').update({ stock: newStock }).eq('id', variantId)
+      if (!isMadeToOrder && variantId) {
+        // Fetch stock directly — don't rely on the join value
+        const { data: variant, error: fetchErr } = await db
+          .from('product_variants')
+          .select('stock')
+          .eq('id', variantId)
+          .single()
+
+        console.log(`[stock-deduct] variant_id=${variantId} fetched:`, variant, 'error:', fetchErr)
+
+        if (variant) {
+          const newStock = Math.max(0, variant.stock - item.quantity)
+          const { error: updateErr } = await db
+            .from('product_variants')
+            .update({ stock: newStock })
+            .eq('id', variantId)
+
+          console.log(`[stock-deduct] updated stock ${variant.stock} → ${newStock} error:`, updateErr)
+        }
+      } else {
+        console.log(`[stock-deduct] skipped item ${item.id} — isMadeToOrder=${isMadeToOrder} variant_id=${variantId}`)
       }
     }
   }
