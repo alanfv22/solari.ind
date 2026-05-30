@@ -227,7 +227,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
     if (sizeType === 'unique') {
       if (parsedColors.length === 0) { toast.warning('Ingresá al menos un color'); return }
       parsedColors.forEach((color) =>
-        newVariants.push({ label: `Talle Único - ${color}`, price_override: null, stock: 0, active: true })
+        newVariants.push({ label: `UNICO - ${color}`, price_override: null, stock: 0, active: true })
       )
     } else {
       if (selectedSizes.length === 0) { toast.warning('Seleccioná al menos un talle'); return }
@@ -574,7 +574,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
               { value: 'letters', label: 'LETRAS' },
               { value: 'numbers', label: 'NÚMEROS' },
               { value: 'numbers2', label: 'NÚMEROS 2' },
-              { value: 'unique', label: 'TALLE ÚNICO' },
+              { value: 'unique', label: 'UNICO' },
             ] as const).map(({ value, label }) => (
               <button
                 key={value}
