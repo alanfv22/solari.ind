@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { SlidersHorizontal, X } from 'lucide-react'
+import { SlidersHorizontal, X, Search } from 'lucide-react'
 import { Navbar } from '@/components/layout/navbar'
 import { Footer } from '@/components/layout/footer'
 import { CartDrawer } from '@/components/cart/cart-drawer'
@@ -27,6 +27,11 @@ function CatalogoContent() {
   const [total, setTotal] = useState(0)
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // Búsqueda por nombre
+  const [searchInput, setSearchInput] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Filtros aplicados (disparan fetch)
   const [selectedGender, setSelectedGender] = useState<GenderFilter>('todo')
@@ -54,12 +59,23 @@ function CatalogoContent() {
     })
   }, [searchParams])
 
-  // Fetch server-side al cambiar filtros o página
+  // Debounce search input → searchQuery
+  function handleSearchChange(value: string) {
+    setSearchInput(value)
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    searchDebounceRef.current = setTimeout(() => {
+      setSearchQuery(value)
+      setCurrentPage(1)
+    }, 300)
+  }
+
+  // Fetch server-side al cambiar filtros, búsqueda o página
   useEffect(() => {
     setIsLoading(true)
     fetchProductsPaginated({
       gender: selectedGender !== 'todo' ? selectedGender : undefined,
       categoryId: selectedCategory ?? undefined,
+      search: searchQuery || undefined,
       sortBy,
       page: currentPage,
       pageSize: PAGE_SIZE,
@@ -68,7 +84,7 @@ function CatalogoContent() {
       setTotal(count)
       setIsLoading(false)
     })
-  }, [selectedGender, selectedCategory, sortBy, currentPage])
+  }, [selectedGender, selectedCategory, searchQuery, sortBy, currentPage])
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
@@ -132,6 +148,8 @@ function CatalogoContent() {
     setSelectedGender('todo')
     setSelectedCategory(null)
     setSortBy('featured')
+    setSearchInput('')
+    setSearchQuery('')
     setCurrentPage(1)
     setFiltersOpen(false)
   }
@@ -186,10 +204,22 @@ function CatalogoContent() {
                 ))}
               </div>
 
+              {/* Search input */}
+              <div className="relative flex-1 max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <input
+                  type="search"
+                  value={searchInput}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Buscar producto..."
+                  className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-colors"
+                />
+              </div>
+
               {/* Filters Button */}
               <Sheet open={filtersOpen} onOpenChange={handleSheetOpenChange}>
                 <SheetTrigger asChild>
-                  <Button variant="outline" className="gap-2 sm:ml-auto">
+                  <Button variant="outline" className="gap-2 shrink-0">
                     <SlidersHorizontal className="h-4 w-4" />
                     Filtros
                     {activeFiltersCount > 0 && (
@@ -306,10 +336,20 @@ function CatalogoContent() {
         </div>
 
         {/* Active Filters */}
-        {(selectedCategory || selectedGender !== 'todo') && (
+        {(selectedCategory || selectedGender !== 'todo' || searchQuery) && (
           <div className="mx-auto max-w-7xl px-4 py-4 lg:px-8">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-muted-foreground">Filtros activos:</span>
+              {searchQuery && (
+                <Badge
+                  variant="secondary"
+                  className="cursor-pointer gap-1 hover:bg-secondary/80"
+                  onClick={() => { setSearchInput(''); setSearchQuery(''); setCurrentPage(1) }}
+                >
+                  "{searchQuery}"
+                  <X className="h-3 w-3" />
+                </Badge>
+              )}
               {selectedGender !== 'todo' && (
                 <Badge
                   variant="secondary"

@@ -71,12 +71,14 @@ export async function fetchProducts(gender?: 'mujer' | 'hombre'): Promise<Produc
 export async function fetchProductsPaginated({
   gender,
   categoryId,
+  search,
   sortBy = 'featured',
   page = 1,
   pageSize = 12,
 }: {
   gender?: 'mujer' | 'hombre'
   categoryId?: string
+  search?: string
   sortBy?: 'featured' | 'price-asc' | 'price-desc' | 'newest'
   page?: number
   pageSize?: number
@@ -92,6 +94,7 @@ export async function fetchProductsPaginated({
 
   if (gender) query = query.in('gender', [gender, 'unisex'])
   if (categoryId) query = query.eq('category_id', categoryId)
+  if (search?.trim()) query = query.ilike('name', `%${search.trim()}%`)
 
   switch (sortBy) {
     case 'price-asc':  query = query.order('base_price', { ascending: true });  break
