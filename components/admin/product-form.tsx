@@ -149,7 +149,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
       is_on_sale: product?.is_on_sale ?? false,
       sale_percent: product?.sale_percent ?? 10,
       category_id: product?.category_id ?? '',
-      gender: product?.gender ?? 'unisex',
+      gender: product?.gender ?? 'mujer',
       is_made_to_order: product?.is_made_to_order ?? false,
       active: product?.active ?? true,
       variants:
@@ -390,7 +390,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
           <div className="space-y-1.5">
             <Label>Género *</Label>
             <Select
-              defaultValue={product?.gender ?? 'unisex'}
+              defaultValue={product?.gender ?? 'mujer'}
               onValueChange={(v) => setValue('gender', v as 'mujer' | 'hombre' | 'unisex')}
             >
               <SelectTrigger>

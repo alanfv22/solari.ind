@@ -5,7 +5,6 @@ import { Navbar } from '@/components/layout/navbar'
 import { Footer } from '@/components/layout/footer'
 import { Hero } from '@/components/home/hero'
 import { AnnouncementBanner } from '@/components/home/announcement-banner'
-import { GenderFilter } from '@/components/home/gender-filter'
 import { CategoryScroll } from '@/components/home/category-scroll'
 import { ProductGrid } from '@/components/home/product-grid'
 import { CartDrawer } from '@/components/cart/cart-drawer'
@@ -14,7 +13,6 @@ import { fetchProducts } from '@/lib/data'
 import type { Product } from '@/lib/types'
 
 export default function HomePage() {
-  const [selectedGender, setSelectedGender] = useState<'mujer' | 'hombre' | 'todo'>('todo')
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -25,14 +23,7 @@ export default function HomePage() {
     })
   }, [])
 
-  const filteredProducts =
-    selectedGender === 'todo'
-      ? allProducts
-      : allProducts.filter(
-          (p) => p.gender === selectedGender || p.gender === 'unisex'
-        )
-
-  const products = [...filteredProducts]
+  const products = [...allProducts]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 10)
 
@@ -42,17 +33,14 @@ export default function HomePage() {
       <main>
         <Hero />
         <AnnouncementBanner />
-        <div className="relative">
-          <GenderFilter selected={selectedGender} onChange={setSelectedGender} />
-          <CategoryScroll />
-          <ProductGrid
-            products={products}
-            title="Últimas novedades"
-            isLoading={isLoading}
-            skeletonCount={8}
-            viewAllHref="/catalogo"
-          />
-        </div>
+        <CategoryScroll />
+        <ProductGrid
+          products={products}
+          title="Últimas novedades"
+          isLoading={isLoading}
+          skeletonCount={8}
+          viewAllHref="/catalogo"
+        />
       </main>
       <Footer />
       <CartDrawer />

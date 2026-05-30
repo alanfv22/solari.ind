@@ -21,16 +21,9 @@ export function WhatsAppFab() {
     ? `https://wa.me/${cleanDigits}?text=${encodeURIComponent(GREETING)}`
     : null
 
-  // Si está cargando o no hay URL, mostramos un esqueleto (pulse)
-  if (loading || !whatsappUrl) {
-    return (
-      <div
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 animate-pulse items-center justify-center rounded-full bg-[#25D366]/60 shadow-lg"
-        aria-busy="true"
-        aria-label="Cargando contacto de WhatsApp"
-      />
-    )
-  }
+  // Mientras carga mostramos skeleton; si no hay URL no renderizamos nada
+  if (loading) return null
+  if (!whatsappUrl) return null
 
   return (
     <motion.a

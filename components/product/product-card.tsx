@@ -5,7 +5,9 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ShoppingBag, Eye, Clock } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { useCartStore } from '@/lib/cart-store'
 import { formatPrice } from '@/lib/data'
 import type { Product, ProductVariant } from '@/lib/types'
@@ -16,36 +18,78 @@ interface ProductCardProps {
   index?: number
 }
 
-function firstAvailableVariant(variants: ProductVariant[] | undefined): ProductVariant | null {
-  if (!variants || variants.length === 0) return null
-  return variants.find((v) => v.type === 'size' && v.stock > 0) ?? variants[0] ?? null
+function parseLabel(label: string): [string, string | null] {
+  const idx = label.indexOf(' - ')
+  if (idx === -1) return [label, null]
+  return [label.slice(0, idx), label.slice(idx + 3)]
 }
 
-
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
-    firstAvailableVariant(product.variants)
-  )
-  const [isHovered, setIsHovered] = useState(false)
   const [img1Loaded, setImg1Loaded] = useState(false)
   const [img2Loaded, setImg2Loaded] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [selectedTalle, setSelectedTalle] = useState<string | null>(null)
+  const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const { addItem, cashDiscountPercent } = useCartStore()
 
   const isPriority = index < 4
+  const variants = product.variants ?? []
 
-  const basePrice = selectedVariant?.price_override ?? product.base_price
+  const isMultiDim = variants.some((v) => v.label.includes(' - '))
+  const talles = isMultiDim
+    ? [...new Set(variants.map((v) => parseLabel(v.label)[0]))]
+    : []
+
+  const colorsForTalle: { color: string; variant: ProductVariant }[] =
+    selectedTalle && isMultiDim
+      ? variants
+          .filter((v) => parseLabel(v.label)[0] === selectedTalle)
+          .map((v) => ({ color: parseLabel(v.label)[1]!, variant: v }))
+      : []
+
+  const resolvedVariant: ProductVariant | null = (() => {
+    if (isMultiDim) {
+      if (!selectedTalle || !selectedColor) return null
+      return variants.find((v) => v.label === `${selectedTalle} - ${selectedColor}`) ?? null
+    }
+    if (!selectedTalle) return null
+    return variants.find((v) => v.label === selectedTalle) ?? null
+  })()
+
+  const canConfirm = resolvedVariant !== null
+
   const { precioLista, precioTransferencia, precioOferta, precioOfertaTransferencia } =
-    calcularPrecios(basePrice, cashDiscountPercent, product.is_on_sale ?? false, product.sale_percent ?? 0)
-  const sizeVariants = product.variants?.filter((v) => v.type === 'size') ?? []
+    calcularPrecios(
+      product.base_price,
+      cashDiscountPercent,
+      product.is_on_sale ?? false,
+      product.sale_percent ?? 0
+    )
 
-  const selectedOutOfStock = selectedVariant !== null && selectedVariant.stock <= 0
-  const canAddToCart = true
+  function isTalleAvailable(talle: string): boolean {
+    if (product.is_made_to_order) return true
+    if (isMultiDim) return variants.some((v) => parseLabel(v.label)[0] === talle && v.stock > 0)
+    return variants.some((v) => v.label === talle && v.stock > 0)
+  }
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  function openSheet(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
-    if (!canAddToCart) return
-    addItem(product, selectedVariant)
+    setSelectedTalle(null)
+    setSelectedColor(null)
+    setSheetOpen(true)
+  }
+
+  function handleSelectTalle(talle: string) {
+    setSelectedTalle(talle)
+    setSelectedColor(null)
+  }
+
+  function handleConfirm() {
+    if (!canConfirm) return
+    addItem(product, resolvedVariant)
+    setSheetOpen(false)
+    toast.success('Agregado al carrito')
   }
 
   const handleQuickView = (e: React.MouseEvent) => {
@@ -54,180 +98,277 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     window.location.href = `/producto/${product.slug}`
   }
 
-  const handleVariantSelect = (e: React.MouseEvent, variant: ProductVariant) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setSelectedVariant(variant)
-  }
-
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.1 }}
-      className="group relative flex flex-col overflow-hidden rounded-lg bg-white shadow-md/50"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <Link href={`/producto/${product.slug}`} className="flex flex-col">
-        {/* Image Container */}
-        <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-slate-100">
-          {/* Skeleton pulse mientras carga la imagen principal */}
-          {!img1Loaded && (
-            <div className="absolute inset-0 animate-pulse bg-slate-200" />
-          )}
-          {product.images?.[0]?.url && (
-            <Image
-              src={product.images[0].url}
-              alt={product.name}
-              fill
-              sizes="(max-width: 768px) 50vw, 25vw"
-              priority={isPriority}
-              loading={isPriority ? undefined : 'lazy'}
-              onLoad={() => setImg1Loaded(true)}
-              className={cn(
-                'object-cover transition-all duration-500',
-                isHovered && 'scale-105'
-              )}
-            />
-          )}
-          {/* Second image on hover (if exists) */}
-          {product.images?.[1]?.url && (
-            <Image
-              src={product.images[1].url}
-              alt={`${product.name} - vista alternativa`}
-              fill
-              sizes="(max-width: 768px) 50vw, 25vw"
-              loading="lazy"
-              onLoad={() => setImg2Loaded(true)}
-              className={cn(
-                'absolute inset-0 object-cover transition-opacity duration-500',
-                isHovered && img2Loaded ? 'opacity-100' : 'opacity-0'
-              )}
-            />
-          )}
+    <>
+      <motion.article
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: index * 0.1 }}
+        className="group relative flex flex-col overflow-hidden rounded-lg bg-white shadow-md/50"
+      >
+        <Link href={`/producto/${product.slug}`} className="flex flex-col">
+          {/* Image Container */}
+          <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-slate-100">
+            {!img1Loaded && (
+              <div className="absolute inset-0 animate-pulse bg-slate-200" />
+            )}
+            {product.images?.[0]?.url && (
+              <Image
+                src={product.images[0].url}
+                alt={product.name}
+                fill
+                sizes="(max-width: 768px) 50vw, 25vw"
+                priority={isPriority}
+                loading={isPriority ? undefined : 'lazy'}
+                onLoad={() => setImg1Loaded(true)}
+                className={cn(
+                  'object-cover transition-all duration-500',
+                  // Scale solo en desktop hover
+                  'md:group-hover:scale-105'
+                )}
+              />
+            )}
 
-          {/* Badges (top-left, stacked) */}
-          <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-            {product.is_on_sale && (
-              <span className="flex h-10 w-10 items-center justify-center bg-orange-800 text-[10px] font-bold uppercase tracking-wide text-orange-100">
-                {(product.sale_percent ?? 0) >= 30 ? 'LIQD.' : 'OFERTA'}
-              </span>
+            {/* Segunda imagen: solo en desktop hover */}
+            {product.images?.[1]?.url && (
+              <Image
+                src={product.images[1].url}
+                alt={`${product.name} - vista alternativa`}
+                fill
+                sizes="(max-width: 768px) 50vw, 25vw"
+                loading="lazy"
+                onLoad={() => setImg2Loaded(true)}
+                className={cn(
+                  'absolute inset-0 object-cover transition-opacity duration-500 opacity-0',
+                  // Solo visible en desktop cuando está cargada
+                  img2Loaded && 'md:group-hover:opacity-100'
+                )}
+              />
             )}
-            {product.is_made_to_order && (
-              <span className="flex items-center gap-1 rounded bg-slate-800/90 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
-                <Clock className="h-2.5 w-2.5" />
-                Por encargo
-              </span>
-            )}
+
+            {/* Badges */}
+            <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+              {product.is_on_sale && (
+                <span className="flex h-10 w-10 items-center justify-center bg-orange-800 text-[10px] font-bold uppercase tracking-wide text-orange-100">
+                  {(product.sale_percent ?? 0) >= 30 ? 'LIQD.' : 'OFERTA'}
+                </span>
+              )}
+              {product.is_made_to_order && (
+                <span className="flex items-center gap-1 rounded bg-slate-800/90 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+                  <Clock className="h-2.5 w-2.5" />
+                  Por encargo
+                </span>
+              )}
+            </div>
+
+            {/* Action Buttons
+                Mobile: siempre visibles (sin opacity-0)
+                Desktop: ocultos por defecto, aparecen en hover con transición */}
+            <div
+              className={cn(
+                'absolute bottom-4 left-4 right-4 flex gap-2',
+                'md:opacity-0 md:translate-y-2.5 md:transition-all md:duration-200',
+                'md:group-hover:opacity-100 md:group-hover:translate-y-0'
+              )}
+            >
+              <Button
+                onClick={openSheet}
+                className="flex-1 gap-2 bg-slate-900 text-slate-100 hover:bg-slate-800"
+                size="sm"
+              >
+                <ShoppingBag className="h-4 w-4" />
+                Agregar
+              </Button>
+              <Button
+                onClick={handleQuickView}
+                variant="outline"
+                size="sm"
+                className="border-slate-900 bg-white text-slate-900 hover:bg-slate-100"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
-          {/* Hover Action Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: isHovered ? 1 : 0, y: isHovered ? 0 : 10 }}
-            className="absolute bottom-4 left-4 right-4 flex gap-2"
-          >
-            <Button
-              onClick={handleAddToCart}
-              disabled={!canAddToCart}
-              className={cn(
-                'flex-1 gap-2 text-slate-100',
-                canAddToCart
-                  ? 'bg-slate-900 hover:bg-slate-800'
-                  : 'cursor-not-allowed bg-slate-400'
-              )}
-              size="sm"
-            >
-              <ShoppingBag className="h-4 w-4" />
-              {selectedOutOfStock && !product.is_made_to_order ? 'Consultar' : 'Agregar'}
-            </Button>
-            <Button
-              onClick={handleQuickView}
-              variant="outline"
-              size="sm"
-              className="border-slate-900 bg-white text-slate-900 hover:bg-slate-100"
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-          </motion.div>
-        </div>
-
-        {/* Product Info */}
-        <div className="flex flex-col gap-2 p-4 pb-5">
-          {/* Category */}
-          <span className="text-[11px] font-medium uppercase tracking-widest text-slate-500">
-            {product.category?.name}
-          </span>
-
-          {/* Name */}
-          <h3 className="font-sans text-base font-medium text-slate-900 leading-snug">
-            {product.name}
-          </h3>
-
-          {/* Price */}
-          <div className="flex flex-col gap-1 pt-1">
-            {/* Precio lista tachado + badge de descuento (solo si hay oferta) */}
-            {precioOferta !== null ? (
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-xs text-slate-400 line-through">
+          {/* Product Info */}
+          <div className="flex flex-col gap-2 p-4 pb-5">
+            <span className="text-[11px] font-medium uppercase tracking-widest text-slate-500">
+              {product.category?.name}
+            </span>
+            <h3 className="font-sans text-base font-medium text-slate-900 leading-snug">
+              {product.name}
+            </h3>
+            <div className="flex flex-col gap-1 pt-1">
+              {precioOferta !== null ? (
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xs text-slate-400 line-through">
+                    {formatPrice(precioLista)}
+                  </span>
+                  {(product.sale_percent ?? 0) > 0 && (
+                    <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1 py-0.5 rounded leading-none">
+                      -{product.sale_percent}%
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-xs text-slate-400">
                   {formatPrice(precioLista)}
                 </span>
-                {(product.sale_percent ?? 0) > 0 && (
-                  <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1 py-0.5 rounded leading-none">
-                    -{product.sale_percent}%
-                  </span>
-                )}
+              )}
+              {precioOferta !== null && (
+                <span className="text-sm font-semibold text-orange-700">
+                  {formatPrice(precioOferta)}
+                </span>
+              )}
+              <div className="flex flex-col gap-0.5">
+                <span className="text-base font-bold text-emerald-700">
+                  {formatPrice(precioOfertaTransferencia ?? precioTransferencia)}
+                </span>
+                <span className="text-[11px] text-emerald-600">con Transferencia</span>
               </div>
-            ) : (
-              <span className="text-xs text-slate-400">
-                {formatPrice(precioLista)}
-              </span>
-            )}
-            {/* Precio de oferta (solo si hay oferta) */}
-            {precioOferta !== null && (
-              <span className="text-sm font-semibold text-orange-700">
-                {formatPrice(precioOferta)}
-              </span>
-            )}
-            {/* Precio transferencia (siempre resaltado, en nueva línea) */}
-            <div className="flex flex-col gap-0.5">
-              <span className="text-base font-bold text-emerald-700">
-                {formatPrice(precioOfertaTransferencia ?? precioTransferencia)}
-              </span>
-              <span className="text-[11px] text-emerald-600">con Transferencia</span>
             </div>
           </div>
+        </Link>
+      </motion.article>
 
-          {/* Size Variants */}
-          {sizeVariants.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-2">
-              {sizeVariants.map((variant) => {
-                const outOfStock = variant.stock <= 0
-                const isSelected = selectedVariant?.id === variant.id
-                return (
-                  <button
-                    key={variant.id}
-                    onClick={(e) => handleVariantSelect(e, variant)}
-                    disabled={outOfStock && !product.is_made_to_order}
-                    title={outOfStock ? 'Sin stock' : undefined}
-                    className={cn(
-                      'relative flex h-8 min-w-[32px] items-center justify-center border px-2.5 text-xs font-medium transition-all',
-                      isSelected
-                        ? 'border-slate-900 bg-slate-900 text-white'
-                        : 'border-slate-300 bg-white text-slate-900 hover:border-slate-900',
-                      outOfStock && !product.is_made_to_order && 'cursor-not-allowed opacity-40',
-                      outOfStock && !isSelected && 'line-through'
+      {/* Variant selection sheet */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl px-5 pb-8 pt-5 max-h-[85vh] overflow-y-auto">
+          <SheetHeader className="mb-5 text-left">
+            <SheetTitle className="font-serif text-lg">{product.name}</SheetTitle>
+            {product.category?.name && (
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                {product.category.name}
+              </p>
+            )}
+          </SheetHeader>
+
+          <div className="space-y-5">
+            {isMultiDim ? (
+              <>
+                <div className="space-y-2.5">
+                  <p className="text-sm font-medium text-slate-700">
+                    Talle
+                    {selectedTalle && (
+                      <span className="ml-2 font-semibold text-slate-900">{selectedTalle}</span>
                     )}
-                  >
-                    {variant.label}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      </Link>
-    </motion.article>
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {talles.map((talle) => {
+                      const available = isTalleAvailable(talle)
+                      const isSelected = selectedTalle === talle
+                      return (
+                        <button
+                          key={talle}
+                          onClick={() => handleSelectTalle(talle)}
+                          disabled={!available}
+                          className={cn(
+                            'flex h-10 min-w-[40px] items-center justify-center border px-3.5 text-sm font-medium transition-all',
+                            isSelected
+                              ? 'border-slate-900 bg-slate-900 text-white'
+                              : 'border-slate-300 bg-white text-slate-900 hover:border-slate-700',
+                            !available && 'cursor-not-allowed opacity-35 line-through'
+                          )}
+                        >
+                          {talle}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {selectedTalle && (
+                  <div className="space-y-2.5">
+                    <p className="text-sm font-medium text-slate-700">
+                      Color
+                      {selectedColor && (
+                        <span className="ml-2 font-semibold text-slate-900">{selectedColor}</span>
+                      )}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {colorsForTalle.map(({ color, variant }) => {
+                        const outOfStock = !product.is_made_to_order && variant.stock <= 0
+                        const isSelected = selectedColor === color
+                        return (
+                          <button
+                            key={color}
+                            onClick={() => setSelectedColor(color)}
+                            disabled={outOfStock}
+                            className={cn(
+                              'flex h-10 min-w-[40px] items-center justify-center border px-3.5 text-sm font-medium transition-all',
+                              isSelected
+                                ? 'border-slate-900 bg-slate-900 text-white'
+                                : 'border-slate-300 bg-white text-slate-900 hover:border-slate-700',
+                              outOfStock && 'cursor-not-allowed opacity-35 line-through'
+                            )}
+                          >
+                            {color}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="space-y-2.5">
+                <p className="text-sm font-medium text-slate-700">
+                  Talle
+                  {selectedTalle && (
+                    <span className="ml-2 font-semibold text-slate-900">{selectedTalle}</span>
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {variants.map((variant) => {
+                    const outOfStock = !product.is_made_to_order && variant.stock <= 0
+                    const isSelected = selectedTalle === variant.label
+                    return (
+                      <button
+                        key={variant.id}
+                        onClick={() => setSelectedTalle(variant.label)}
+                        disabled={outOfStock}
+                        className={cn(
+                          'flex h-10 min-w-[40px] items-center justify-center border px-3.5 text-sm font-medium transition-all',
+                          isSelected
+                            ? 'border-slate-900 bg-slate-900 text-white'
+                            : 'border-slate-300 bg-white text-slate-900 hover:border-slate-700',
+                          outOfStock && 'cursor-not-allowed opacity-35 line-through'
+                        )}
+                      >
+                        {variant.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {resolvedVariant && !product.is_made_to_order && resolvedVariant.stock <= 0 && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                Sin stock disponible — podés consultar disponibilidad por WhatsApp
+              </p>
+            )}
+
+            <Button
+              onClick={handleConfirm}
+              disabled={!canConfirm}
+              className="w-full gap-2"
+              size="lg"
+            >
+              <ShoppingBag className="h-4 w-4" />
+              {canConfirm
+                ? resolvedVariant && !product.is_made_to_order && resolvedVariant.stock <= 0
+                  ? 'Consultar disponibilidad'
+                  : 'Agregar al carrito'
+                : isMultiDim && !selectedTalle
+                  ? 'Elegí un talle'
+                  : isMultiDim && selectedTalle && !selectedColor
+                    ? 'Elegí un color'
+                    : 'Elegí un talle'}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   )
 }
