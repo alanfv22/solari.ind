@@ -42,99 +42,115 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const body = await request.json()
   const newStatus: OrderStatus = body.status
 
-  // Fetch current order with items to handle stock logic
+  console.log(`[PUT /orders/${id}] newStatus received:`, JSON.stringify(newStatus), typeof newStatus)
+
+  // 1. Fetch only the current status (no joins)
   const { data: order, error: fetchError } = await db
     .from('orders')
-    .select(
-      `status, items:order_items(
-        id, variant_id, quantity,
-        product:products(is_made_to_order),
-        variant:product_variants(id, stock)
-      )`
-    )
+    .select('status')
     .eq('id', id)
     .eq('store_id', STORE_ID)
     .single()
 
-  if (fetchError) return Response.json({ error: fetchError.message }, { status: 500 })
+  if (fetchError) {
+    console.error('[PUT] fetch order error:', fetchError)
+    return Response.json({ error: fetchError.message }, { status: 500 })
+  }
 
   const prevStatus: OrderStatus = order.status
-  console.log(`[status-change] order ${id}: ${prevStatus} → ${newStatus}`)
-  console.log(`[status-change] raw order.items from Supabase:`, JSON.stringify(order.items, null, 2))
+  console.log(`[PUT] prevStatus=${prevStatus} newStatus=${newStatus} match=${newStatus === 'confirmado'}`)
 
-  // Supabase returns joined rows as arrays; normalise to single objects
-  type RawItem = {
-    id: string
-    variant_id: string | null
-    quantity: number
-    product: { is_made_to_order: boolean }[] | { is_made_to_order: boolean } | null
-    variant: { id: string; stock: number }[] | { id: string; stock: number } | null
+  // 2. Fetch order_items directly by order_id — no FK join dependency
+  const { data: rawItems, error: itemsError } = await db
+    .from('order_items')
+    .select('id, variant_id, quantity, product_id')
+    .eq('order_id', id)
+
+  if (itemsError) {
+    console.error('[PUT] fetch order_items error:', itemsError)
+    return Response.json({ error: itemsError.message }, { status: 500 })
   }
-  const rawItems: RawItem[] = order.items ?? []
-  const items = rawItems.map((item) => ({
-    ...item,
-    product: Array.isArray(item.product) ? item.product[0] ?? null : item.product,
-    variant: Array.isArray(item.variant) ? item.variant[0] ?? null : item.variant,
-  }))
+
+  console.log('[PUT] order_items:', JSON.stringify(rawItems))
 
   // Deduct stock when moving to 'confirmado'
   if (newStatus === 'confirmado' && prevStatus === 'pendiente') {
-    console.log(`[stock-deduct] order ${id} → confirmado. Items:`, items.map(i => ({
-      id: i.id,
-      variant_id: i.variant_id,
-      quantity: i.quantity,
-      is_made_to_order: i.product?.is_made_to_order,
-      variant_from_join: i.variant,
-    })))
+    console.log(`[stock-deduct] entering deduction loop for ${rawItems?.length ?? 0} items`)
 
-    for (const item of items) {
-      const isMadeToOrder = item.product?.is_made_to_order ?? false
-      const variantId = item.variant_id
+    for (const item of rawItems ?? []) {
+      console.log(`[stock-deduct] item: variant_id=${item.variant_id} product_id=${item.product_id} qty=${item.quantity}`)
 
-      if (!isMadeToOrder && variantId) {
-        // Fetch stock directly — don't rely on the join value
-        const { data: variant, error: fetchErr } = await db
-          .from('product_variants')
-          .select('stock')
-          .eq('id', variantId)
+      if (!item.variant_id) {
+        // No variant — check if the product is made-to-order
+        const { data: product } = await db
+          .from('products')
+          .select('is_made_to_order')
+          .eq('id', item.product_id)
           .single()
-
-        console.log(`[stock-deduct] variant_id=${variantId} fetched:`, variant, 'error:', fetchErr)
-
-        if (variant) {
-          const newStock = Math.max(0, variant.stock - item.quantity)
-          const { error: updateErr } = await db
-            .from('product_variants')
-            .update({ stock: newStock })
-            .eq('id', variantId)
-
-          console.log(`[stock-deduct] updated stock ${variant.stock} → ${newStock} error:`, updateErr)
-        }
-      } else {
-        console.log(`[stock-deduct] skipped item ${item.id} — isMadeToOrder=${isMadeToOrder} variant_id=${variantId}`)
+        console.log(`[stock-deduct] no variant_id, product.is_made_to_order=${product?.is_made_to_order}`)
+        continue
       }
+
+      // Check if product is made-to-order (skip stock deduction if so)
+      const { data: product } = await db
+        .from('products')
+        .select('is_made_to_order')
+        .eq('id', item.product_id)
+        .single()
+
+      if (product?.is_made_to_order) {
+        console.log(`[stock-deduct] skipped — product ${item.product_id} is_made_to_order`)
+        continue
+      }
+
+      // Fetch current stock
+      const { data: variant, error: variantErr } = await db
+        .from('product_variants')
+        .select('id, stock')
+        .eq('id', item.variant_id)
+        .single()
+
+      console.log(`[stock-deduct] variant fetch: id=${item.variant_id}`, JSON.stringify(variant), 'error:', variantErr)
+
+      if (!variant) {
+        console.error(`[stock-deduct] variant not found for id=${item.variant_id}`)
+        continue
+      }
+
+      const newStock = Math.max(0, variant.stock - item.quantity)
+      const { data: updated, error: updateErr } = await db
+        .from('product_variants')
+        .update({ stock: newStock })
+        .eq('id', item.variant_id)
+        .select('id, stock')
+
+      console.log(`[stock-deduct] UPDATE result: ${variant.stock} → ${newStock}`, JSON.stringify(updated), 'error:', updateErr)
     }
   }
 
   // Restore stock when cancelling, only if stock was previously deducted
   if (newStatus === 'cancelado' && STOCK_DEDUCTED_STATUSES.includes(prevStatus)) {
-    for (const item of items) {
-      const isMadeToOrder = item.product?.is_made_to_order ?? false
-      const variantId = item.variant_id
+    for (const item of rawItems ?? []) {
+      if (!item.variant_id) continue
 
-      if (!isMadeToOrder && variantId) {
-        const { data: variant } = await db
+      const { data: product } = await db
+        .from('products')
+        .select('is_made_to_order')
+        .eq('id', item.product_id)
+        .single()
+      if (product?.is_made_to_order) continue
+
+      const { data: variant } = await db
+        .from('product_variants')
+        .select('stock')
+        .eq('id', item.variant_id)
+        .single()
+
+      if (variant) {
+        await db
           .from('product_variants')
-          .select('stock')
-          .eq('id', variantId)
-          .single()
-
-        if (variant) {
-          await db
-            .from('product_variants')
-            .update({ stock: variant.stock + item.quantity })
-            .eq('id', variantId)
-        }
+          .update({ stock: variant.stock + item.quantity })
+          .eq('id', item.variant_id)
       }
     }
   }
@@ -148,6 +164,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     .select()
     .single()
 
-  if (error) return Response.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[PUT] update order status error:', error)
+    return Response.json({ error: error.message }, { status: 500 })
+  }
+
+  console.log(`[PUT] order ${id} status updated to ${newStatus} ✓`)
   return Response.json({ data })
 }
