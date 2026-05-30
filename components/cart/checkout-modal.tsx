@@ -244,11 +244,11 @@ export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits
             ? 'border-primary bg-primary/5'
             : 'border-border text-muted-foreground hover:border-foreground/30'
         }`}>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
             <input type="radio" value="transferencia" {...register('paymentMethod')} className="sr-only" />
-            <span className="text-sm font-medium">Transferencia bancaria</span>
-            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded leading-none">
-              -{cashDiscountPercent}% off
+            <span className="text-sm font-medium truncate">Transferencia</span>
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1 py-0.5 rounded leading-none shrink-0">
+              -{cashDiscountPercent}%
             </span>
           </div>
           <span className="text-sm font-bold text-emerald-700 tabular-nums shrink-0">
@@ -283,12 +283,12 @@ export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!submitting) { reset(); onOpenChange(v) } }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md flex flex-col max-h-[90vh]">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Realizar pedido</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2 overflow-y-auto pr-1">
           {nameField}
           {phoneField}
           {deliveryTypeField}

@@ -176,36 +176,10 @@ function CatalogoContent() {
         {/* Filters Bar */}
         <div className="sticky top-[72px] z-30 border-b border-border bg-background/95 backdrop-blur-sm">
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
-            <div className="flex items-center justify-between gap-4 py-4">
-              {/* Gender Pills - Desktop */}
-              <div className="hidden items-center gap-1 rounded-full border border-border bg-background p-1 sm:flex">
-                {(['todo', 'mujer', 'hombre'] as const).map((gender) => (
-                  <button
-                    key={gender}
-                    onClick={() => handleGenderChange(gender)}
-                    className={cn(
-                      'relative rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                      selectedGender === gender
-                        ? 'text-primary-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {selectedGender === gender && (
-                      <motion.span
-                        layoutId="catalog-gender-filter"
-                        className="absolute inset-0 rounded-full bg-primary"
-                        transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
-                      />
-                    )}
-                    <span className="relative z-10 capitalize">
-                      {gender === 'todo' ? 'Todo' : gender === 'mujer' ? 'Mujer' : 'Hombre'}
-                    </span>
-                  </button>
-                ))}
-              </div>
+            <div className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:py-4">
 
-              {/* Search input */}
-              <div className="relative flex-1 max-w-xs">
+              {/* Row 1 mobile: Search (full width). Desktop: part of single row */}
+              <div className="relative w-full sm:flex-1 sm:max-w-xs">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <input
                   type="search"
@@ -215,6 +189,36 @@ function CatalogoContent() {
                   className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-colors"
                 />
               </div>
+
+              {/* Row 2 mobile: Filters + count. Desktop: rest of single row */}
+              <div className="flex items-center justify-between gap-4 sm:contents">
+
+                {/* Gender Pills - Desktop only */}
+                <div className="hidden items-center gap-1 rounded-full border border-border bg-background p-1 sm:flex">
+                  {(['todo', 'mujer', 'hombre'] as const).map((gender) => (
+                    <button
+                      key={gender}
+                      onClick={() => handleGenderChange(gender)}
+                      className={cn(
+                        'relative rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                        selectedGender === gender
+                          ? 'text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      {selectedGender === gender && (
+                        <motion.span
+                          layoutId="catalog-gender-filter"
+                          className="absolute inset-0 rounded-full bg-primary"
+                          transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
+                        />
+                      )}
+                      <span className="relative z-10 capitalize">
+                        {gender === 'todo' ? 'Todo' : gender === 'mujer' ? 'Mujer' : 'Hombre'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
 
               {/* Filters Button */}
               <Sheet open={filtersOpen} onOpenChange={handleSheetOpenChange}>
@@ -325,12 +329,14 @@ function CatalogoContent() {
                 </SheetContent>
               </Sheet>
 
-              {/* Results Count */}
-              {!isLoading && (
-                <span className="text-sm text-muted-foreground">
-                  {total} producto{total !== 1 ? 's' : ''}
-                </span>
-              )}
+                {/* Results Count */}
+                {!isLoading && (
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    {total} producto{total !== 1 ? 's' : ''}
+                  </span>
+                )}
+
+              </div>{/* end row-2 wrapper */}
             </div>
           </div>
         </div>
