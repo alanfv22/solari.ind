@@ -138,7 +138,8 @@ export const useCartStore = create<CartStore>()(
         let message = 'Hola! Me interesa hacer el siguiente pedido:\n'
 
         if (opts) {
-          message += `\n👤 *Cliente:* ${opts.customerName} ${opts.customerLastname}`
+          const fullName = opts.customerLastname ? `${opts.customerName} ${opts.customerLastname}` : opts.customerName
+          message += `\n👤 *Cliente:* ${fullName}`
           message += `\n📞 *Teléfono:* ${opts.customerPhone}`
           if (opts.deliveryType === 'envio') {
             message += `\n🚚 *Entrega:* Envío a domicilio`

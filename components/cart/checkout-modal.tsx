@@ -20,15 +20,20 @@ import { useCartStore } from '@/lib/cart-store'
 
 const schema = z
   .object({
-    name: z.string().min(1, 'Requerido'),
-    lastname: z.string().min(1, 'Requerido'),
+    fullName: z.string().min(1, 'Requerido'),
     phone: z.string().min(6, 'Teléfono inválido'),
     deliveryType: z.enum(['retiro', 'envio']),
-    address: z.string().optional(),
+    street: z.string().optional(),
+    locality: z.string().optional(),
+    postalCode: z.string().optional(),
   })
   .refine(
-    (data) => data.deliveryType !== 'envio' || (data.address && data.address.trim().length > 0),
-    { message: 'Ingresá la dirección de entrega', path: ['address'] }
+    (data) => data.deliveryType !== 'envio' || (data.street && data.street.trim().length > 0),
+    { message: 'Ingresá la calle y número', path: ['street'] }
+  )
+  .refine(
+    (data) => data.deliveryType !== 'envio' || (data.locality && data.locality.trim().length > 0),
+    { message: 'Ingresá la localidad', path: ['locality'] }
   )
 
 type FormData = z.infer<typeof schema>
@@ -57,17 +62,32 @@ export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits
 
   const deliveryType = watch('deliveryType')
 
+  function buildDeliveryAddress(data: FormData): string | null {
+    if (data.deliveryType !== 'envio') return null
+    const parts = [data.street?.trim()]
+    if (data.locality?.trim()) parts.push(data.locality.trim())
+    if (data.postalCode?.trim()) parts.push(`CP: ${data.postalCode.trim()}`)
+    return parts.filter(Boolean).join(', ')
+  }
+
   async function onSubmit(data: FormData) {
     if (!items.length) return
     setSubmitting(true)
 
     const subtotal = getSubtotal()
+    const deliveryAddress = buildDeliveryAddress(data)
+
+    // Split fullName into name + lastname for storage
+    const nameParts = data.fullName.trim().split(/\s+/)
+    const customer_name = nameParts[0]
+    const customer_lastname = nameParts.slice(1).join(' ') || ''
+
     const opts = {
-      customerName: data.name,
-      customerLastname: data.lastname,
+      customerName: data.fullName,
+      customerLastname: '',
       customerPhone: data.phone,
       deliveryType: data.deliveryType,
-      deliveryAddress: data.deliveryType === 'envio' ? (data.address ?? null) : null,
+      deliveryAddress,
       storeAddress,
     }
 
@@ -75,11 +95,11 @@ export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits
       const payload = {
         subtotal,
         total: subtotal,
-        customer_name: data.name,
-        customer_lastname: data.lastname,
+        customer_name,
+        customer_lastname,
         customer_phone: data.phone,
         delivery_type: data.deliveryType,
-        delivery_address: data.deliveryType === 'envio' ? (data.address ?? null) : null,
+        delivery_address: deliveryAddress,
         items: items.map((item) => {
           const unitPrice = item.variant?.price_override ?? item.product.base_price
           return {
@@ -125,18 +145,11 @@ export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
-          {/* Nombre y apellido */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="checkout-name">Nombre *</Label>
-              <Input id="checkout-name" {...register('name')} placeholder="Ana" />
-              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="checkout-lastname">Apellido *</Label>
-              <Input id="checkout-lastname" {...register('lastname')} placeholder="García" />
-              {errors.lastname && <p className="text-xs text-destructive">{errors.lastname.message}</p>}
-            </div>
+          {/* Nombre completo */}
+          <div className="space-y-1.5">
+            <Label htmlFor="checkout-fullname">Nombre completo *</Label>
+            <Input id="checkout-fullname" {...register('fullName')} placeholder="Ana García" />
+            {errors.fullName && <p className="text-xs text-destructive">{errors.fullName.message}</p>}
           </div>
 
           {/* Teléfono */}
@@ -169,19 +182,32 @@ export function CheckoutModal({ open, onOpenChange, storeAddress, whatsappDigits
             </div>
           </div>
 
-          {/* Dirección (solo envío) */}
+          {/* Dirección desglosada (solo envío) */}
           {deliveryType === 'envio' && (
-            <div className="space-y-1.5">
-              <Label htmlFor="checkout-address">Dirección de entrega *</Label>
-              <Input id="checkout-address" {...register('address')} placeholder="Calle, número, localidad" />
-              {errors.address && <p className="text-xs text-destructive">{errors.address.message}</p>}
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="checkout-street">Calle y número *</Label>
+                <Input id="checkout-street" {...register('street')} placeholder="Lavalle 2078" />
+                {errors.street && <p className="text-xs text-destructive">{errors.street.message}</p>}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="checkout-locality">Localidad *</Label>
+                  <Input id="checkout-locality" {...register('locality')} placeholder="Maquinista Savio" />
+                  {errors.locality && <p className="text-xs text-destructive">{errors.locality.message}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="checkout-postal">Código postal</Label>
+                  <Input id="checkout-postal" {...register('postalCode')} placeholder="1620" />
+                </div>
+              </div>
             </div>
           )}
 
           {/* Dirección de local (solo retiro) */}
-          {deliveryType === 'retiro' && storeAddress && (
+          {deliveryType === 'retiro' && (
             <p className="text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
-              📍 {storeAddress}
+              📍 {storeAddress ?? 'Ontiveros 30, Maquinista Savio, Escobar, Buenos Aires'}
             </p>
           )}
 

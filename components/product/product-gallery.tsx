@@ -25,7 +25,10 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
   return (
     <div className="flex flex-col gap-4">
       {/* Main Image */}
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-secondary">
+      <div
+        className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-secondary max-h-[420px] lg:max-h-none"
+        style={{ touchAction: 'pan-y' }}
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={selectedIndex}

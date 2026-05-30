@@ -21,10 +21,12 @@ export function CartDrawer() {
     getSubtotal,
     whatsappDigits,
     storeAddress,
+    cashDiscountPercent,
   } = useCartStore()
 
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const subtotal = getSubtotal()
+  const totalTransferencia = Math.round(subtotal * (1 - cashDiscountPercent / 100))
 
   return (
     <>
@@ -166,10 +168,20 @@ export function CartDrawer() {
             {/* Cart Footer */}
             <div className="border-t border-border pt-4">
               {/* Subtotal */}
-              <div className="flex items-center justify-between pb-4">
+              <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="text-xl font-semibold text-foreground">
                   {formatPrice(subtotal)}
+                </span>
+              </div>
+
+              {/* Total con transferencia */}
+              <div className="flex items-center justify-between pb-4 pt-1">
+                <span className="text-sm text-emerald-700 font-medium">
+                  Con transferencia ({cashDiscountPercent}% off)
+                </span>
+                <span className="text-xl font-bold text-emerald-700">
+                  {formatPrice(totalTransferencia)}
                 </span>
               </div>
 
