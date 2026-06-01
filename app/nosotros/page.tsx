@@ -69,7 +69,7 @@ export default function NosotrosPage() {
                   className="object-cover transition-transform duration-500 hover:scale-105"
                 />
               </div>
-              <div className="relative aspect-[3/4] overflow-hidden rounded-xl shadow-md mt-6">
+              <div className="relative aspect-[3/4] overflow-hidden rounded-xl shadow-md">
                 <Image
                   src="/images/local2.jpeg"
                   alt="Local Solari Indumentaria"
