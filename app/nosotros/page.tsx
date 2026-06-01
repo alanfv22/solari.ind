@@ -50,7 +50,7 @@ export default function NosotrosPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            <div className="grid grid-cols-2 gap-4">
               {/* Placeholder — reemplazar con foto real del local */}
               <div className="relative aspect-[4/5] overflow-hidden rounded-lg bg-slate-100 flex items-center justify-center">
                 <span className="text-sm text-slate-400 font-medium">Foto del local</span>
