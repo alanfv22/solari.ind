@@ -12,7 +12,8 @@
       "Bash(grep -v \"^$\")",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Alan Veron\\\\Desktop\\\\Proyectos Generales\\\\Solari.ind\" -Directory)",
       "Bash(Select-Object Name)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(node -e ':*)"
     ]
   }
 }
