@@ -35,7 +35,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [selectedTalle, setSelectedTalle] = useState<string | null>(null)
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
-  const { addItem, cashDiscountPercent } = useCartStore()
+  const { addItem, cashDiscountPercent, items: cartItems } = useCartStore()
 
   const isPriority = index < 4
   const variants = product.variants ?? []
@@ -61,7 +61,23 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     return variants.find((v) => v.label === selectedTalle) ?? null
   })()
 
+  // Returns how many units of a given variant are already in the cart
+  function getCartQty(variantId: string | null): number {
+    const found = cartItems.find(
+      (i) => i.product.id === product.id && (i.variant?.id ?? null) === variantId
+    )
+    return found?.quantity ?? 0
+  }
+
+  // Available stock = real stock minus what's already in the cart
+  function availableStock(variant: ProductVariant): number {
+    if (product.is_made_to_order) return Infinity
+    return variant.stock - getCartQty(variant.id)
+  }
+
   const canConfirm = resolvedVariant !== null
+  const resolvedAvailable = resolvedVariant ? availableStock(resolvedVariant) : 0
+  const resolvedCartQty = resolvedVariant ? getCartQty(resolvedVariant.id) : 0
 
   const { precioLista, precioTransferencia, precioOferta, precioOfertaTransferencia } =
     calcularPrecios(
@@ -73,8 +89,8 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
 
   function isTalleAvailable(talle: string): boolean {
     if (product.is_made_to_order) return true
-    if (isMultiDim) return variants.some((v) => parseLabel(v.label)[0] === talle && v.stock > 0)
-    return variants.some((v) => v.label === talle && v.stock > 0)
+    if (isMultiDim) return variants.some((v) => parseLabel(v.label)[0] === talle && availableStock(v) > 0)
+    return variants.some((v) => v.label === talle && availableStock(v) > 0)
   }
 
   function openSheet(e: React.MouseEvent) {
@@ -286,7 +302,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {colorsForTalle.map(({ color, variant }) => {
-                      const outOfStock = !product.is_made_to_order && variant.stock <= 0
+                      const outOfStock = !product.is_made_to_order && availableStock(variant) <= 0
                       const isSelected = selectedColor === color
                       return (
                         <button
@@ -310,22 +326,24 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               </div>
             )}
 
-            {resolvedVariant && !product.is_made_to_order && resolvedVariant.stock <= 0 && (
+            {resolvedVariant && !product.is_made_to_order && resolvedAvailable <= 0 && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-                Sin stock disponible — podés consultar disponibilidad por WhatsApp
+                {resolvedCartQty > 0 && resolvedVariant.stock > 0
+                  ? `Ya tenés ${resolvedCartQty} en el carrito — stock agotado`
+                  : 'Sin stock disponible'}
               </p>
             )}
 
             <Button
               onClick={handleConfirm}
-              disabled={!canConfirm}
+              disabled={!canConfirm || (!product.is_made_to_order && resolvedAvailable <= 0)}
               className="w-full gap-2"
               size="lg"
             >
               <ShoppingBag className="h-4 w-4" />
               {canConfirm
-                ? resolvedVariant && !product.is_made_to_order && resolvedVariant.stock <= 0
-                  ? 'Consultar disponibilidad'
+                ? !product.is_made_to_order && resolvedAvailable <= 0
+                  ? 'Sin stock disponible'
                   : 'Agregar al carrito'
                 : !selectedTalle
                   ? 'Elegí un talle'

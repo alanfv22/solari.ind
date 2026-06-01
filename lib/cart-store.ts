@@ -2,14 +2,12 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { toast } from 'sonner'
 import type { CartItem, Product, ProductVariant } from './types'
 import { formatPrice } from './data'
+import { supabase } from './supabase'
 
 
-function normalizeWhatsAppDigits(phone: string | null): string | null {
-  if (!phone) return null;
-  return phone.replace(/\D/g, '');
-}
 
 interface CartStore {
   items: CartItem[]
@@ -80,8 +78,15 @@ export const useCartStore = create<CartStore>()(
           )
 
           if (existingIndex > -1) {
+            const existing = state.items[existingIndex]
+            let newQty = existing.quantity + quantity
+            // Clamp to stock for non-made-to-order products
+            if (!product.is_made_to_order) {
+              const maxStock = variant?.stock ?? 1
+              newQty = Math.min(newQty, maxStock)
+            }
             const newItems = [...state.items]
-            newItems[existingIndex].quantity += quantity
+            newItems[existingIndex] = { ...existing, quantity: newQty }
             return { items: newItems, isOpen: true }
           }
 
