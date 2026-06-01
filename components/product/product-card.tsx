@@ -37,7 +37,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const { addItem, cashDiscountPercent, items: cartItems } = useCartStore()
 
-  const isPriority = index < 4
+  const isPriority = index < 6
   const variants = product.variants ?? []
 
   const isMultiDim = variants.some((v) => v.label.includes(' - '))

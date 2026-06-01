@@ -59,6 +59,8 @@ export function CategoryScroll() {
                           src={(category.icon_url ?? category.image_url)!}
                           alt={category.name}
                           fill
+                          sizes="(max-width: 768px) 50vw, 15vw"
+                          priority={index < 4}
                           className="object-cover transition-transform duration-700 group-hover:scale-105"
                         />
                       )}
