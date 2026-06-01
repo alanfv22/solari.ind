@@ -31,15 +31,26 @@ export default function NosotrosPage() {
 
         {/* Story */}
         <section className="mx-auto max-w-4xl px-4 py-16 lg:px-8 lg:py-24">
-          <div className="prose prose-lg mx-auto text-foreground">
-            <p className="text-xl leading-relaxed text-muted-foreground">
-              <strong className="text-foreground">Solari Indumentaria</strong> En Solari Indumentaria creemos que vestirse bien no tiene por qué ser complicado. Tenemos el objetivo de ofrecer prendas seleccionadas con estilo, calidad y precios accesibles para acompañar a cada persona en su día a día.
-Somos un emprendimiento familiar que trabaja con dedicación para brindar una atención cercana y personalizada, ayudando a que cada cliente encuentre lo que busca y se sienta cómodo con su elección.
-Más que vender ropa, buscamos crear una experiencia de compra simple, confiable y agradable, donde cada detalle está pensado con cariño.
-Nació con una misión clara: ofrecer moda y calidad a un increíble precio. Te ayudamos y asesoramos con la mejor atención tanto presencial como online.
-Somos Sol y Ariel, dos hermanos animándose a emprender y junto a ustedes formamos lo que es SOLARI indumentaria.</p>
+          <div className="mx-auto space-y-12">
+            <div className="space-y-4 text-base leading-relaxed text-slate-600 sm:text-lg">
+              <p>
+                En Solari Indumentaria creemos que vestirse bien no tiene por qué ser complicado. Tenemos el objetivo de ofrecer prendas seleccionadas con estilo, calidad y precios accesibles para acompañar a cada persona en su día a día.
+              </p>
+              <p>
+                Somos un emprendimiento familiar que trabaja con dedicación para brindar una atención cercana y personalizada, ayudando a que cada cliente encuentre lo que busca y se sienta cómodo con su elección.
+              </p>
+              <p>
+                Más que vender ropa, buscamos crear una experiencia de compra simple, confiable y agradable, donde cada detalle está pensado con cariño.
+              </p>
+              <p>
+                Nació con una misión clara: ofrecer moda y calidad a un increíble precio. Te ayudamos y asesoramos con la mejor atención tanto presencial como online.
+              </p>
+              <p className="font-medium text-slate-800">
+                Somos Sol y Ariel, dos hermanos animándose a emprender y junto a ustedes formamos lo que es <span className="italic">SOLARI indumentaria</span>.
+              </p>
+            </div>
 
-            <div className="my-16 grid gap-8 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
               {/* Placeholder — reemplazar con foto real del local */}
               <div className="relative aspect-[4/5] overflow-hidden rounded-lg bg-slate-100 flex items-center justify-center">
                 <span className="text-sm text-slate-400 font-medium">Foto del local</span>
