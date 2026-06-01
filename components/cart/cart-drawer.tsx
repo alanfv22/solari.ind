@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { useCartStore } from '@/lib/cart-store'
@@ -23,9 +23,18 @@ export function CartDrawer() {
     whatsappDigits,
     storeAddress,
     cashDiscountPercent,
+    validateCart,
   } = useCartStore()
 
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const prevIsOpen = useRef(false)
+
+  useEffect(() => {
+    if (isOpen && !prevIsOpen.current && items.length > 0) {
+      validateCart()
+    }
+    prevIsOpen.current = isOpen
+  }, [isOpen, items.length, validateCart])
   const subtotal = getSubtotal()
   const totalTransferencia = Math.round(subtotal * (1 - cashDiscountPercent / 100))
 

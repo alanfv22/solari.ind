@@ -30,6 +30,8 @@ interface CartStore {
   clearCart: () => void
   getItemCount: () => number
   getSubtotal: () => number
+  /** Validates cart items against Supabase: removes inactive products, adjusts over-stock quantities. */
+  validateCart: () => Promise<void>
   generateWhatsAppMessage: (opts?: {
     customerName: string
     customerLastname: string
@@ -133,6 +135,56 @@ export const useCartStore = create<CartStore>()(
       },
 
       clearCart: () => set({ items: [] }),
+
+      validateCart: async () => {
+        const { items } = get()
+        if (items.length === 0) return
+
+        const productIds = [...new Set(items.map((i) => i.product.id))]
+        const variantIds = items.map((i) => i.variant?.id).filter(Boolean) as string[]
+
+        const [{ data: products }, { data: variants }] = await Promise.all([
+          supabase.from('products').select('id, active').in('id', productIds),
+          variantIds.length > 0
+            ? supabase.from('product_variants').select('id, stock').in('id', variantIds)
+            : Promise.resolve({ data: [] }),
+        ])
+
+        const productMap = new Map((products ?? []).map((p) => [p.id, p.active]))
+        const stockMap = new Map((variants ?? []).map((v) => [v.id, v.stock as number]))
+
+        set((state) => {
+          let nextItems = [...state.items]
+
+          // Remove inactive products
+          nextItems = nextItems.filter((item) => {
+            const active = productMap.get(item.product.id)
+            if (active === false) {
+              toast.warning(`"${item.product.name}" ya no está disponible y fue eliminado del carrito.`)
+              return false
+            }
+            return true
+          })
+
+          // Adjust quantities and update stored stock
+          nextItems = nextItems.map((item) => {
+            if (!item.variant || item.product.is_made_to_order) return item
+            const freshStock = stockMap.get(item.variant.id)
+            if (freshStock === undefined) return item
+
+            const updatedVariant = { ...item.variant, stock: freshStock }
+
+            if (item.quantity > freshStock && freshStock > 0) {
+              toast.warning(`Cantidad de "${item.product.name}${item.variant.label ? ` (${item.variant.label})` : ''}" reducida a ${freshStock} por stock disponible.`)
+              return { ...item, variant: updatedVariant, quantity: freshStock }
+            }
+
+            return { ...item, variant: updatedVariant }
+          })
+
+          return { items: nextItems }
+        })
+      },
 
       getItemCount: () => {
         return get().items.reduce((total, item) => total + item.quantity, 0)

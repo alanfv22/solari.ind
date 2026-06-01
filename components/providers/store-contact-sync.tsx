@@ -9,6 +9,8 @@ export function StoreContactSync() {
   const setDigits = useCartStore((s) => s.setWhatsappDigits)
   const setCashDiscountPercent = useCartStore((s) => s.setCashDiscountPercent)
   const setStoreAddress = useCartStore((s) => s.setStoreAddress)
+  const validateCart = useCartStore((s) => s.validateCart)
+  const items = useCartStore((s) => s.items)
 
   useEffect(() => {
     fetchStoreContact().then(({ whatsappDigits, cashDiscountPercent, storeAddress }) => {
@@ -16,7 +18,9 @@ export function StoreContactSync() {
       setCashDiscountPercent(cashDiscountPercent)
       setStoreAddress(storeAddress)
     })
-  }, [setDigits, setCashDiscountPercent, setStoreAddress])
+    if (items.length > 0) validateCart()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return null
 }
