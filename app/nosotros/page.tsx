@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, Check } from 'lucide-react'
 import { Navbar } from '@/components/layout/navbar'
@@ -51,12 +52,21 @@ export default function NosotrosPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              {/* Placeholder — reemplazar con foto real del local */}
-              <div className="relative aspect-[4/5] overflow-hidden rounded-lg bg-slate-100 flex items-center justify-center">
-                <span className="text-sm text-slate-400 font-medium">Foto del local</span>
+              <div className="relative aspect-[4/5] overflow-hidden rounded-lg">
+                <Image
+                  src="/images/local1.jpeg"
+                  alt="Local Solari Indumentaria"
+                  fill
+                  className="object-cover"
+                />
               </div>
-              <div className="relative aspect-[4/5] overflow-hidden rounded-lg bg-slate-100 flex items-center justify-center">
-                <span className="text-sm text-slate-400 font-medium">Foto del local</span>
+              <div className="relative aspect-[4/5] overflow-hidden rounded-lg">
+                <Image
+                  src="/images/local2.jpeg"
+                  alt="Local Solari Indumentaria"
+                  fill
+                  className="object-cover"
+                />
               </div>
             </div>
 
