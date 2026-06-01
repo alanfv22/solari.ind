@@ -18,11 +18,16 @@ export default function NosotrosPage() {
     <>
       <Navbar />
       <main className="pt-20">
-        {/* Hero — gradiente negro hasta que haya foto del local */}
+        {/* Hero */}
         <section className="relative h-[50vh] min-h-[400px] w-full overflow-hidden bg-slate-900">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
+          {/* Textura sutil */}
+          <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
+            <div className="text-center space-y-3">
+              <p className="text-xs font-medium uppercase tracking-[0.3em] text-slate-400">
+                Solari Indumentaria
+              </p>
               <h1 className="font-serif text-4xl font-medium text-white sm:text-5xl lg:text-6xl">
                 Nuestra Historia
               </h1>
@@ -33,6 +38,8 @@ export default function NosotrosPage() {
         {/* Story */}
         <section className="mx-auto max-w-4xl px-4 py-16 lg:px-8 lg:py-24">
           <div className="mx-auto space-y-12">
+
+            {/* Texto */}
             <div className="space-y-4 text-base leading-relaxed text-slate-600 sm:text-lg">
               <p>
                 En Solari Indumentaria creemos que vestirse bien no tiene por qué ser complicado. Tenemos el objetivo de ofrecer prendas seleccionadas con estilo, calidad y precios accesibles para acompañar a cada persona en su día a día.
@@ -51,47 +58,51 @@ export default function NosotrosPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="relative aspect-[4/5] overflow-hidden rounded-lg">
+            {/* Fotos del local */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-5">
+              <div className="relative aspect-[3/4] overflow-hidden rounded-xl shadow-md">
                 <Image
                   src="/images/local1.jpeg"
                   alt="Local Solari Indumentaria"
                   fill
-                  className="object-cover"
+                  sizes="(max-width: 768px) 50vw, 33vw"
+                  className="object-cover transition-transform duration-500 hover:scale-105"
                 />
               </div>
-              <div className="relative aspect-[4/5] overflow-hidden rounded-lg">
+              <div className="relative aspect-[3/4] overflow-hidden rounded-xl shadow-md mt-6">
                 <Image
                   src="/images/local2.jpeg"
                   alt="Local Solari Indumentaria"
                   fill
-                  className="object-cover"
+                  sizes="(max-width: 768px) 50vw, 33vw"
+                  className="object-cover transition-transform duration-500 hover:scale-105"
                 />
               </div>
             </div>
 
+            {/* Compromiso */}
             <div className="border-t border-border pt-8">
               <h2 className="font-serif text-2xl font-medium text-foreground sm:text-3xl">
                 Nuestro Compromiso
               </h2>
-              <ul className="mt-4 space-y-3 text-muted-foreground list-none pl-0">
-                <li className="flex items-start gap-3">
-                  <Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />
-                  <span>
+              <ul className="mt-6 space-y-4 list-none pl-0">
+                <li className="flex items-start gap-3 rounded-lg bg-slate-50 px-4 py-3">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  <span className="text-sm text-slate-600 sm:text-base">
                     <strong className="text-foreground">Calidad sin compromisos:</strong> Seleccionamos
                     materiales premium para cada prenda.
                   </span>
                 </li>
-                <li className="flex items-start gap-3">
-                  <Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />
-                  <span>
+                <li className="flex items-start gap-3 rounded-lg bg-slate-50 px-4 py-3">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  <span className="text-sm text-slate-600 sm:text-base">
                     <strong className="text-foreground">Atención personalizada:</strong> Te asesoramos
                     para que encuentres exactamente lo que buscás.
                   </span>
                 </li>
-                <li className="flex items-start gap-3">
-                  <Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />
-                  <span>
+                <li className="flex items-start gap-3 rounded-lg bg-slate-50 px-4 py-3">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  <span className="text-sm text-slate-600 sm:text-base">
                     <strong className="text-foreground">Precios justos:</strong> Moda premium accesible,
                     sin intermediarios.
                   </span>
