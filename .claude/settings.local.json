@@ -13,7 +13,12 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Alan Veron\\\\Desktop\\\\Proyectos Generales\\\\Solari.ind\" -Directory)",
       "Bash(Select-Object Name)",
       "Bash(npm install:*)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(cp \"c:\\\\Users\\\\Alan Veron\\\\Desktop\\\\Proyectos Generales\\\\Solari.ind\\\\public\\\\images\\\\logo.ico\" \"c:\\\\Users\\\\Alan Veron\\\\Desktop\\\\Proyectos Generales\\\\Solari.ind\\\\app\\\\favicon.ico\")",
+      "Bash(python -c ' *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Alan Veron\\Desktop\\Proyectos Generales\\Solari.ind\\public\\images"
     ]
   }
 }
