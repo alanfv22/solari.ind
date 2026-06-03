@@ -61,7 +61,7 @@ export function Navbar() {
               <Link href="/" onClick={() => setMobileMenuOpen(false)}>
                 <div className="flex items-center gap-2">
                   <Image
-                    src="/images/logo.jpg"
+                    src="/images/logo1.svg"
                     alt="Solari"
                     width={40}
                     height={40}
@@ -91,7 +91,7 @@ export function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 lg:gap-3">
           <Image
-            src="/images/logo.jpg"
+            src="/images/logo1.svg"
             alt="Solari"
             width={44}
             height={44}
